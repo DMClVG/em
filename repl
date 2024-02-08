@@ -1,0 +1,4 @@
+#!/bin/env sh
+
+rm -f .guile-socket
+guile --listen=$PWD/.guile-socket 
