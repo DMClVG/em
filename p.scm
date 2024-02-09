@@ -3,8 +3,8 @@
 
 (define P
   '(
-     (() . (print 0 1))
-     ((k a b) . (print a b c))))
+     (() . (print 0 13123))
+     ((k a b) . (print k a))))
 
 (define (trace x)
   (display x)
@@ -44,40 +44,46 @@
                  params) ", "))
 
 (define (proc-cdecl name params)
-  (apply string-append `("void " ,name "(" ,(params->cparams params) ")")))
+  (apply string-append `("void " ,name "(q_stack s)")))
 
 
-(define (setup-arguments args n)
+(define (store-temp-arguments args n)
   (if (nil? args)
     ""
     (apply string-append
-      (setup-arguments (cdr args) (+ n 1))
+      (store-temp-arguments (cdr args) (+ n 1))
       (let ((arg (car args)))
-        `("\tq_value n_" ,(number->string n) " = " 
-          ,(cond 
-             ((number? arg) (number->string arg))
-             ((symbol? arg) (symbol->string arg))
-             (else (error "nuhuh"))) ";\n")))))
+        `("\tq_value t_" ,(symbol->string arg) " = Q_FETCH(s, " ,(number->string n) ");\n")))))
 
-(define (enumerate-call-params params n)
-  (if (nil? params)
-    '()
-    (cons (string-append "n_" (number->string n)) (enumerate-call-params (cdr params) (+ n 1)))))
-   
+(define (edit-stack args n)
+  (string-append 
+    "\tQ_RESIZE(s, " (number->string (length args)) ");\n"
+    (let loop ((args args) (n n))
+      (if (nil? args)
+        ""
+        (apply string-append
+          (loop (cdr args) (+ n 1))
+          (let ((arg (car args)))
+            `("\tQ_STORE(s, " ,(number->string n) ", " 
+              ,(cond 
+                 ((symbol? arg) (values "t_" (symbol->string arg)))
+                 ((number? arg) (values "Q_NUMBER(" (number->string arg) ")"))
+                 (else (error "bad argument"))) ");\n")))))))
+
 (define (make-call expr n)
-  (let ((params (string-join (enumerate-call-params (cdr expr) 0) ", ")))
-    (case (car expr)
-      ('apply (string-append "\tq_apply(" params ");"))
-      ('print (string-append "\tq_print(" params ");"))
-      (else (error (string-append "unrecognized operation " (symbol->string (car expr))))))))
+  (case (car expr)
+    ('apply (string-append "\tq_apply(s);"))
+    ('print (string-append "\tq_print(s);"))
+    (else (error (string-append "unrecognized operation " (symbol->string (car expr)))))))
 
 (define (proc-body params expr)
   (let* (
          (op (car expr))
          (args (cdr expr))
-         (argument-section (setup-arguments args 0))
+         (temp-arguments-section (store-temp-arguments params 0))
+         (edit-stack-section (edit-stack args 0))
          (call-section (make-call expr 0)))
-    (string-append "{\n" argument-section "\n" call-section "\n}")))
+    (string-append "{\n" temp-arguments-section "\n\n" edit-stack-section "\n\n" call-section "\n}")))
 
 (define (proc-to-c name proc)
   (let* ((params (car proc))
@@ -85,6 +91,27 @@
          (declaration (proc-cdecl name params)) 
          (body (proc-body params expr)))
     (string-append declaration "\n" body)))
+
+(define (enumerate-functions p n)
+  (if (nil? p) 
+    '()
+     (cons (string-append "\tf_" (number->string n)) (enumerate-functions (car p) (+ n 1)))))
+
+(define (program-create-global-function-table p)
+  (string-append "q_function Q_GFT[] = {\n" (string-join (enumerate-functions p 0) ",\n") "\n};\n\n"))
+
+(define (program-to-c p)
+  (string-append
+    "#include \"qruntime.h\"\n"
+    "#include \"qmain.h\"\n\n"
+    (string-join 
+      (let loop ((procedures p) (n 0))
+        (if (nil? procedures)
+           '()
+           (cons (proc-to-c (string-append "f_" (number->string n)) (car procedures)) (loop (cdr procedures) (+ n 1))))) "\n\n")
+    "\n\n" 
+    (program-create-global-function-table p)))
            
-(trace (proc-to-c "babby" '((a b c) . (apply a b c))))
+;;(trace (proc-to-c "f_" '((a b c) . (apply 1 b c))))
+(trace (program-to-c P))
 

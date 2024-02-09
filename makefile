@@ -1,7 +1,7 @@
-P = main
+P = out
 LDFLAGS=
-CFLAGS=-g -Wall -Werror
+CFLAGS=-g -Wall
 CC=gcc
-OBJECTS=main.o qm.o q.o ops.o parser.o
+OBJECTS=out.o
 
 $(P): $(OBJECTS)
