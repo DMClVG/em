@@ -1,12 +1,20 @@
 (define code 
   '(() . ((k a b) . (print k a)) 0 1 2)) 
 
-(define P
+;;(define P
+;;  '(
+;;     (() () exit (0))
+;;     (() (-7 7) + (2))
+;;     ((x) (x x) if (3 0))
+;;     ((x) (x) print (0))))
+
+
+(define P2
   '(
-     (() . (exit 0))
-     (() . (+ 2 -8 7))
-     ((x) . (if 3 0 x x))
-     ((x) . (print 0 x))))
+     (() () exit (0))
+     (() () lambda (2 3))
+     ((f) (f) call (0))
+     (() (69420) print (1))))
 
 (define (trace x)
   (display x)
@@ -72,61 +80,76 @@
                  ((number? arg) (values "Q_NUMBER(" (number->string arg) ")"))
                  (else (error "bad argument"))) ");\n")))))))
 
-(define (make-call expr n)
-  (case (car expr)
-    ('apply (string-append "\tq_apply(s);"))
-    ('print (string-append "\tq_print(s);"))
-    ('exit (string-append "\tq_exit(s);"))
-    ('+ (string-append "\tq_add(s);"))
-    ('- (string-append "\tq_sub(s);"))
-    ('* (string-append "\tq_mul(s);"))
-    ('/ (string-append "\tq_div(s);"))
-    ('pair (string-append "\tq_pair(s);"))
-    ('pair? (string-append "\tq_is_pair(s);"))
-    ('if (string-append "\tq_branch(s);"))
-    (else (error (string-append "unrecognized operation " (symbol->string (car expr)))))))
+(define (cont->function-id cont)
+  (string-append "f_" (number->string cont)))
 
-(define (proc-body params expr)
+(define (make-call op conts)
+  (let ((cont (cont->function-id (car conts))))
+    (case op
+      ('apply (string-append "\t" cont "(q_apply(s));"))
+      ('print (string-append "\t" cont "(q_print(s));"))
+      ('exit (string-append "\t" cont "(q_exit(s));"))
+      ('+ (string-append "\t" cont "(q_add(s));"))
+      ('- (string-append "\t" cont "(q_sub(s));"))
+      ('* (string-append "\t" cont "(q_mul(s));"))
+      ('/ (string-append "\t" cont "(q_div(s));"))
+      ('lambda (string-append "\t" cont "(q_make_lambda(s, " (cont->function-id (car (cdr conts))) "));"))
+      ('branch (string-append "\tQ_BRANCH(s, " cont ", " (cont->function-id (car (cdr conts))) ");"))
+      ('call (string-append "\tq_call(s);"))
+
+      (else (error (string-append "unrecognized operation " (symbol->string (car expr))))))))
+
+(define (proc-body params args op conts)
   (let* (
-         (op (car expr))
-         (args (cdr expr))
          (temp-arguments-section (store-temp-arguments params 0))
          (edit-stack-section (edit-stack args 0))
-         (call-section (make-call expr 0)))
-    (string-append "{\n" temp-arguments-section "\n\n" edit-stack-section "\n\n" call-section "\n}")))
+         (call-section (make-call op conts)))
+    (string-append "{\n" temp-arguments-section "\n" edit-stack-section "\n" call-section "\n}")))
 
 (define (proc-to-c name proc)
-  (let* ((params (car proc))
-         (expr (cdr proc))
+  (let* ((params (list-ref proc 0))
+         (args (list-ref proc 1))
+         (op (list-ref proc 2))
+         (conts (list-ref proc 3))
+
          (declaration (proc-cdecl name params)) 
-         (body (proc-body params expr)))
+         (body (proc-body params args op conts)))
+
     (string-append declaration "\n" body)))
 
 (define (enumerate-functions p n)
   (if (nil? p) 
     '()
-     (cons (string-append "\tf_" (number->string n)) (enumerate-functions (cdr p) (+ n 1)))))
+     (cons (string-append "f_" (number->string n)) (enumerate-functions (cdr p) (+ n 1)))))
 
 (define (program-create-global-function-table p)
   (string-append "q_function Q_GFT[] = {\n" (string-join (enumerate-functions p 0) ",\n") "\n};\n\n"))
 
+(define (to-top-decl x)
+  (string-append "void " x "(q_stack s);\n"))
+
+(define (top-defs p)
+  (apply string-append (map to-top-decl (enumerate-functions p 0))))
+
 (define (program-define-main p start)
-  (string-append "int main() { return q_main(" (number->string start) "); } "))
+  (string-append "int main() { Q_MAIN(" (cont->function-id start) "); return 0; } "))
 
 (define (program-to-c p start)
   (string-append
     "#include \"qruntime.h\"\n"
-    "#include \"qmain.h\"\n\n"
+    "#include \"qmain.h\"\n"
+    "\n"
+    (top-defs p)
+    "\n"
     (string-join 
       (let loop ((procedures p) (n 0))
         (if (nil? procedures)
            '()
            (cons (proc-to-c (string-append "f_" (number->string n)) (car procedures)) (loop (cdr procedures) (+ n 1))))) "\n\n")
-    "\n\n" 
-    (program-create-global-function-table p)
     "\n\n"
     (program-define-main p start)))
            
+;;(trace (proc-to-c "helppp" '((x) (x x) + (0 3))))
 ;;(trace (proc-to-c "f_" '((a b c) . (apply 1 b c))))
-(trace (program-to-c P 1))
+(trace (program-to-c P2 1))
 
