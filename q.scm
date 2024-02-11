@@ -3,8 +3,10 @@
 
 (define P
   '(
-     (() . (print 0 13123))
-     ((k a b) . (print k a))))
+     (() . (exit 0))
+     (() . (+ 2 -8 7))
+     ((x) . (if 3 0 x x))
+     ((x) . (print 0 x))))
 
 (define (trace x)
   (display x)
@@ -74,6 +76,14 @@
   (case (car expr)
     ('apply (string-append "\tq_apply(s);"))
     ('print (string-append "\tq_print(s);"))
+    ('exit (string-append "\tq_exit(s);"))
+    ('+ (string-append "\tq_add(s);"))
+    ('- (string-append "\tq_sub(s);"))
+    ('* (string-append "\tq_mul(s);"))
+    ('/ (string-append "\tq_div(s);"))
+    ('pair (string-append "\tq_pair(s);"))
+    ('pair? (string-append "\tq_is_pair(s);"))
+    ('if (string-append "\tq_branch(s);"))
     (else (error (string-append "unrecognized operation " (symbol->string (car expr)))))))
 
 (define (proc-body params expr)
@@ -95,12 +105,15 @@
 (define (enumerate-functions p n)
   (if (nil? p) 
     '()
-     (cons (string-append "\tf_" (number->string n)) (enumerate-functions (car p) (+ n 1)))))
+     (cons (string-append "\tf_" (number->string n)) (enumerate-functions (cdr p) (+ n 1)))))
 
 (define (program-create-global-function-table p)
   (string-append "q_function Q_GFT[] = {\n" (string-join (enumerate-functions p 0) ",\n") "\n};\n\n"))
 
-(define (program-to-c p)
+(define (program-define-main p start)
+  (string-append "int main() { return q_main(" (number->string start) "); } "))
+
+(define (program-to-c p start)
   (string-append
     "#include \"qruntime.h\"\n"
     "#include \"qmain.h\"\n\n"
@@ -110,8 +123,10 @@
            '()
            (cons (proc-to-c (string-append "f_" (number->string n)) (car procedures)) (loop (cdr procedures) (+ n 1))))) "\n\n")
     "\n\n" 
-    (program-create-global-function-table p)))
+    (program-create-global-function-table p)
+    "\n\n"
+    (program-define-main p start)))
            
 ;;(trace (proc-to-c "f_" '((a b c) . (apply 1 b c))))
-(trace (program-to-c P))
+(trace (program-to-c P 1))
 
