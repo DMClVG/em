@@ -1,12 +1,9 @@
-(define code 
-  '(() . ((k a b) . (print k a)) 0 1 2)) 
-
-;;(define P
-;;  '(
-;;     (() () exit (0))
-;;     (() (-7 7) + (2))
-;;     ((x) (x x) if (3 0))
-;;     ((x) (x) print (0))))
+(define P
+  '(
+     (() () exit (0))
+     (() (-7 7) + (2))
+     ((x) (x x) if (3 0))
+     ((x) (x) print (0))))
 
 
 (define P2
@@ -14,30 +11,32 @@
      (() () exit (0))
      (() () lambda (2 3))
      ((f) (f) call (0))
-     (() (69420) print (1))
-     
-     (() . (200) make-buffer (0))
-     ((b) . (b b 8 6) + (1))))
+     (() (69420) print (1))))
 
+(define s2
+  '(
+    (() (3) goto (1)) ; 0
+    ((a) (a a) + (2)) ; 1
+    ((c) (10 c c) > (3)) ; 2
+    ((res) (res) branch (4 5)) ; 3
+    ((c) (c) goto (1)) ; 4
+    ((c) (c) print (6)) ; 5
+    (() () exit ()))) ; 6
+
+
+(define mem1
+  '(
+    (() (128) alloc (1))
+    ((m) (m 12 69 m) store! (2))
+    ((m) (m 12) load (3))
+    
+    ((x) (x) print (4))
+    (() () exit ())))
 
 (define (trace x)
   (display x)
   (newline)
   x)
-
-;;(define (parse ls)
-;;  (if (list? (car ls))
-;;    (parse-stmt stmt)
-;;    (parse-expr expr)))
-;;
-;;(define (parse-stmt stmt)
-;;  (let ((params (car stmt))
-;;        (expr (cdr stmt)))
-;;
-;;    (trace params)
-;;    (trace expr)))
-(define (param->cparam param)
-  (string-append "q_value " (symbol->string param)))
 
 (define (nil? x)
   (equal? x '()))
@@ -52,26 +51,19 @@
 (define (string-join ls del)
   (apply string-append (delimited-list ls del)))
 
-(define (params->cparams params)
-  (string-join (map 
-                 param->cparam
-                 params) ", "))
-
-(define (proc-cdecl name params)
-  (apply string-append `("void " ,name "(q_stack s)")))
-
-
-(define (store-temp-arguments args n)
-  (if (nil? args)
+(define (store-temp params n)
+  (if (nil? params)
     ""
     (apply string-append
-      (store-temp-arguments (cdr args) (+ n 1))
-      (let ((arg (car args)))
-        `("\tq_value t_" ,(symbol->string arg) " = Q_FETCH(&s, " ,(number->string n) ");\n")))))
+      (store-temp (cdr params) (+ n 1))
+      (let ((param (car params)))
+        `("\tq_value t_" ,(symbol->string param) " = Q_FETCH(&s, " ,(number->string n) ");\n")))))
 
-(define (edit-stack args n)
+(define (edit-stack params args n)
   (string-append 
-    "\tQ_RESIZE(&s, " (number->string (length args)) ");\n"
+    ;;"\tQ_RESIZE(&s, " (number->string (length args)) ");\n"
+    "\tQ_POP(&s, " (number->string (length params)) ");\n"
+    "\tQ_PUSH(&s, " (number->string (length args)) ");\n"
     (let loop ((args args) (n n))
       (if (nil? args)
         ""
@@ -84,19 +76,19 @@
                  ((number? arg) (values "Q_NUMBER(" (number->string arg) ")"))
                  (else (error "bad argument"))) ");\n")))))))
 
-(define (cont->function-id cont)
+(define (cont->label cont)
   (string-append "f_" (number->string cont)))
 
 (define (goto label)
   (string-append "goto " label ";"))
 
 (define (make-call op conts)
-  (let ((conts (map cont->function-id conts))) 
+  (let ((conts (map cont->label conts))) 
    (case op
      ('print 
       (string-join `("q_print(&s);" ,(goto (car conts))) "\n\t"))
      ('exit 
-      (string-join `("q_exit(&s);" ,(goto (car conts))) "\n\t"))
+      "q_exit(&s);")
 
      ('+ 
       (string-join `("q_add(&s);" ,(goto (car conts))) "\n\t"))
@@ -106,6 +98,10 @@
       (string-join `("q_mul(&s);" ,(goto (car conts))) "\n\t"))
      ('/ 
       (string-join `("q_div(&s);" ,(goto (car conts))) "\n\t"))
+     ('equal?
+      (string-join `("q_is_equal(&s);" ,(goto (car conts))) "\n\t"))
+     ('>
+      (string-join `("q_is_greater(&s);" ,(goto (car conts))) "\n\t"))
 
      ('lambda 
       (string-join `(,(string-append "q_make_lambda(&s, &&" (list-ref conts 1) ");") ,(goto (car conts))) "\n\t"))
@@ -113,17 +109,29 @@
       (string-join `("q_call(&s, &next);" ,(goto "*next")) "\n\t"))
 
      ('branch 
-      (string-join `(,(string-append "Q_BRANCH(&s, " (list-ref conts 1) ", " (list-ref conts 2) ");") ,(goto (car conts))) "\n\t"))
+      (string-join `(,(string-append "Q_BRANCH(&s, " (list-ref conts 0) ", " (list-ref conts 1) ");")) "\n\t"))
+     ('goto
+      (goto (car conts)))
 
-     (else (error (string-append "unrecognized operation " (symbol->string (car expr))))))))
+     ('alloc
+      (string-join `("q_alloc(&s);" ,(goto (car conts))) "\n\t"))
+     ('store!
+      (string-join `("q_store(&s);" ,(goto (car conts))) "\n\t"))
+     ('load
+      (string-join `("q_load(&s);" ,(goto (car conts))) "\n\t"))
+     ('size
+      (string-join `("q_size(&s);" ,(goto (car conts))) "\n\t"))
+
+     (else (error (string-append "unrecognized operation " (symbol->string op)))))))
+
 
 (define (proc-body params args op conts)
   (let* (
-         (temp-arguments-section (store-temp-arguments params 0))
-         (edit-stack-section (edit-stack args 0))
+         (temp-section (store-temp params 0))
+         (edit-stack-section (edit-stack params args 0))
          (call-section (make-call op conts)))
 
-    (string-append "{\n" temp-arguments-section "\n" edit-stack-section "\n\t" call-section "\n}")))
+    (string-append "{\n" temp-section "\n" edit-stack-section "\n\t" call-section "\n}")))
 
 (define (proc-to-c label proc)
   (let* ((params (list-ref proc 0))
@@ -145,8 +153,7 @@
     "\ts.top = s.base;\n"
 
     "\tvoid *next = NULL;\n"
-    "\tprintf(\"Starting program..\\n\");\n"
-    "\t" (goto (cont->function-id start)) "\n"
+    "\t" (goto (cont->label start)) "\n"
     "\n"
     (string-join 
       (let loop ((procedures p) (n 0))
@@ -155,9 +162,6 @@
            (cons (proc-to-c (string-append "f_" (number->string n)) (car procedures)) (loop (cdr procedures) (+ n 1))))) "\n\n")
     "\n\n\treturn 0;\n"
     "}\n"))
-    
-           
-;;(trace (proc-to-c "helppp" '((x) (x x) + (0 3))))
-;;(trace (proc-to-c "f_" '((a b c) . (apply 1 b c))))
-(trace (program-to-c P2 1))
+
+(trace (program-to-c mem1 0))
 

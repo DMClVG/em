@@ -1,6 +1,6 @@
 P=out
 LDFLAGS=
-CFLAGS=-g -Wall -fstack-protector -O3
+CFLAGS=-g -Wall -fstack-protector -O0 -fno-strict-aliasing -fno-semantic-interposition 
 CC=gcc
 OBJECTS=out.o
 
