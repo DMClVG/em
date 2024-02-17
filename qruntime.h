@@ -35,18 +35,46 @@ typedef void (*q_function)(q_stack s);
 #define Q_LAMBDA(f) ((q_value) { .type = Q_TYPE_LAMBDA, .data = (uint64_t)f } )
 #define Q_BUFFER(p) ((q_value) { .type = Q_TYPE_BUFFER, .data = (uint64_t)p } )
 
-#define Q_STORE(s, n, v) (s)->top[-n] = v;
-#define Q_FETCH(s, n) ((s)->top[-n])
-#define Q_RESIZE(s, n) (s)->top = (s)->base + n;
-#define Q_POP(s, n) (s)->top -= n;
-#define Q_PUSH(s, n) (s)->top += n;
+#define Q_STORE(s, n, v) { q_check_stack_in_bounds(s, n); (s)->top[-n] = v; }
+#define Q_FETCH(s, n, v) { q_check_stack_in_bounds(s, n); *v = (s)->top[-n]; }
+// #define Q_RESIZE(s, n) (s)->top = (s)->base + n;
+#define Q_POP(s, n) { q_check_stack_underflow(s, n); (s)->top -= n; }
+#define Q_PUSH(s, n) { q_check_stack_overflow(s, n); (s)->top += n; }
 #define Q_BRANCH(s, a, b) { if((s)->top[0].data) { Q_POP(s, 1); goto a; } else { Q_POP(s, 1); goto b; } }
 
 #define Q_STACK_SIZE 1024
 
+static inline void q_check_stack_in_bounds(q_stack *s, uint64_t i)
+{
+  if (!(i >= 0 && i <= s->top - s->base))
+  {
+    fprintf(stderr, "Stack invalid access %ld\n", i);
+    exit(-1);
+  }
+}
+
+static inline void q_check_stack_underflow(q_stack *s, uint64_t n)
+{
+  if (n > s->top - s->base)
+  {
+    fprintf(stderr, "Stack underflow\n");
+    exit(-1);
+  }
+}
+
+static inline void q_check_stack_overflow(q_stack *s, uint64_t n)
+{
+  if (s->top - s->base + n >= Q_STACK_SIZE)
+  {
+    fprintf(stderr, "Stack overflow\n"); 
+    exit(-1);
+  }
+}
+
 static inline void q_print(q_stack *s)
 {
-  q_value x = Q_FETCH(s, 0);
+  q_value x;
+  Q_FETCH(s, 0, &x);
 
   printf("print %x:%ld\n", x.type, x.data);
   
@@ -55,7 +83,8 @@ static inline void q_print(q_stack *s)
 
 static inline void q_trace(q_stack *s, int i)
 {
-  q_value x = Q_FETCH(s, i);
+  q_value x;
+  Q_FETCH(s, i, &x);
 
   printf("print %x:%ld. s=%ld\n", x.type, x.data, (s->top - s->base));
 }
@@ -68,7 +97,8 @@ static inline void q_make_lambda(q_stack *s, void* f)
 
 static inline void q_call(q_stack *s, void** next)
 {
-  q_value f = Q_FETCH(s, 0);
+  q_value f;
+  Q_FETCH(s, 0, &f);
   Q_POP(s, 1);
 
   if (f.type == Q_TYPE_LAMBDA)
@@ -85,14 +115,16 @@ static inline void q_call(q_stack *s, void** next)
 
 static inline void q_exit(q_stack *s)
 {
-  q_value code = Q_FETCH(s, 0);
-  exit(code.data);
+  exit(0);
 }
 
 static inline void q_add(q_stack *s)
 {
-  q_value a = Q_FETCH(s, 0);
-  q_value b = Q_FETCH(s, 1);
+  q_value a, b;
+
+  Q_FETCH(s, 0, &a);
+  Q_FETCH(s, 1, &b);
+
   Q_POP(s, 2);
   Q_PUSH(s, 1);
 
@@ -101,8 +133,11 @@ static inline void q_add(q_stack *s)
 
 static inline void q_is_equal(q_stack *s)
 {
-  q_value a = Q_FETCH(s, 0);
-  q_value b = Q_FETCH(s, 1);
+  q_value a, b;
+
+  Q_FETCH(s, 0, &a);
+  Q_FETCH(s, 1, &b);
+
   Q_POP(s, 2);
   Q_PUSH(s, 1);
 
@@ -111,34 +146,42 @@ static inline void q_is_equal(q_stack *s)
 
 static inline void q_is_greater(q_stack *s)
 {
-  q_value a = Q_FETCH(s, 0);
-  q_value b = Q_FETCH(s, 1);
+  q_value a, b;
+
+  Q_FETCH(s, 0, &a);
+  Q_FETCH(s, 1, &b);
+
   Q_POP(s, 2);
   Q_PUSH(s, 1);
 
   Q_STORE(s, 0, Q_NUMBER(a.data > b.data));
 }
 
-static inline void q_alloc(q_stack *s)
+static inline void q_alloc(q_stack *s, q_stack *o)
 {
-  q_value size = Q_FETCH(s, 0);
+  q_value p_size;
+
+  Q_FETCH(s, 0, &p_size);
   Q_POP(s, 1);
-  Q_PUSH(s, 1);
 
-  uint64_t buffer_size = size.data;
+  uint64_t size = p_size.data;
 
-  q_buffer* buffer = calloc(buffer_size, sizeof(uint64_t) + sizeof(uint8_t) * buffer_size);
-  buffer->size = buffer_size;
+  q_buffer* buffer = calloc(size, sizeof(q_buffer) + sizeof(uint8_t) * size);
+  buffer->size = size;
 
-  Q_STORE(s, 0, Q_BUFFER(buffer));
+  Q_PUSH(o, 1);
+  Q_STORE(o, 0, Q_BUFFER(buffer));
 }
 
-static inline void q_store(q_stack *s)
+static inline void q_store(q_stack *s, q_stack *o)
 {
-  q_value p_buffer = Q_FETCH(s, 0);
-  q_value p_idx = Q_FETCH(s, 1);
-  q_value p_value = Q_FETCH(s, 2);
-  Q_POP(s, 3);
+  q_value p_buffer, p_idx, p_value;
+
+  Q_FETCH(o, 0, &p_buffer);
+  Q_FETCH(s, 0, &p_idx);
+  Q_FETCH(s, 1, &p_value);
+
+  Q_POP(s, 2);
 
   if(p_buffer.type != Q_TYPE_BUFFER) { 
     fprintf(stderr, "Argument is not a buffer\n");
@@ -154,11 +197,14 @@ static inline void q_store(q_stack *s)
   buffer->data[p_idx.data] = (uint8_t) p_value.data;
 }
 
-static inline void q_load(q_stack *s)
+static inline void q_load(q_stack *s, q_stack *o)
 {
-  q_value p_buffer = Q_FETCH(s, 0);
-  q_value p_idx = Q_FETCH(s, 1);
-  Q_POP(s, 2);
+  q_value p_buffer, p_idx;
+
+  Q_FETCH(o, 0, &p_buffer);
+  Q_FETCH(s, 0, &p_idx);
+
+  Q_POP(s, 1);
   Q_PUSH(s, 1);
 
   if(p_buffer.type != Q_TYPE_BUFFER) { 
@@ -173,6 +219,21 @@ static inline void q_load(q_stack *s)
   }
 
   Q_STORE(s, 0, Q_NUMBER((uint64_t) buffer->data[p_idx.data]));
+}
+
+static inline void q_drop(q_stack *o) 
+{
+  q_value p_buffer;
+
+  Q_FETCH(o, 0, &p_buffer);
+
+  Q_POP(o, 1);
+
+  if(p_buffer.type == Q_TYPE_BUFFER) { 
+    q_buffer* buffer = (q_buffer*)p_buffer.data;
+    fprintf(stderr, "Buffer %p freed\n", buffer);
+    free(buffer);
+  }
 }
 
 #endif

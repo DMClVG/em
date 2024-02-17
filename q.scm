@@ -1,37 +1,38 @@
 (define P
   '(
-     (() () exit (0))
-     (() (-7 7) + (2))
-     ((x) (x x) if (3 0))
-     ((x) (x) print (0))))
+     (() () exit (0) () ())
+     (() (-7 7) + (2) () ())
+     ((x) (x x) if (3 0) () ())
+     ((x) (x) print (0) () ())))
 
 
 (define P2
   '(
-     (() () exit (0))
-     (() () lambda (2 3))
-     ((f) (f) call (0))
-     (() (69420) print (1))))
+     (() () exit (0) () ())
+     (() () lambda (2 3) () ())
+     ((f) (f) call (0) () ())
+     (() (69420) print (1) () ())))
 
 (define s2
   '(
-    (() (3) goto (1)) ; 0
-    ((a) (a a) + (2)) ; 1
-    ((c) (10 c c) > (3)) ; 2
-    ((res) (res) branch (4 5)) ; 3
-    ((c) (c) goto (1)) ; 4
-    ((c) (c) print (6)) ; 5
-    (() () exit ()))) ; 6
+    (() (5) goto (1) () ()) ; 0
+    ((a) (a a) + (2) () ()) ; 1
+    ((c) (100 c c) > (3) () ()) ; 2
+    ((res) (res) branch (4 5) () ()) ; 3
+    ((c) (c) goto (1) () ()) ; 4
+    ((c) (c) print (6) () ()) ; 5
+    (() () exit () () ()))) ; 6
 
 
 (define mem1
   '(
-    (() (128) alloc (1))
-    ((m) (m 12 69 m) store! (2))
-    ((m) (m 12) load (3))
+    (() (128) alloc (1) () ())
+    (() (12 69) store! (2) (m) (m))
+    (() (12) load (3) (m) (m))
     
-    ((x) (x) print (4))
-    (() () exit ())))
+    ((x) (x) print (4) (m) (m))
+    (() () drop (5) (m) (m))
+    (() () exit () () ())))
 
 (define (trace x)
   (display x)
@@ -40,6 +41,26 @@
 
 (define (nil? x)
   (equal? x '()))
+
+(define (count x ls)
+  (if (nil? ls)
+    0
+    (if (equal? (car ls) x)
+      (+ 1 (count x (cdr ls)))
+      (count x (cdr ls)))))
+
+(define (symlist->string ls)
+  (string-join (map symbol->string ls) " "))
+
+(define (validate-objects-stack-effect params args)
+  (let* 
+    next-param 
+    ((params params))
+
+    (when (not (nil? params))
+      (if (equal? (count (car params) args) 1)
+        (next-param (cdr params))
+        (error "Invalid stack effect " (symlist->string params) (symlist->string args))))))
 
 (define (delimited-list ls del)
   (if (nil? ls) 
@@ -52,12 +73,28 @@
   (apply string-append (delimited-list ls del)))
 
 (define (store-temp params n)
-  (if (nil? params)
-    ""
-    (apply string-append
-      (store-temp (cdr params) (+ n 1))
-      (let ((param (car params)))
-        `("\tq_value t_" ,(symbol->string param) " = Q_FETCH(&s, " ,(number->string n) ");\n")))))
+  (string-append 
+    (if (nil? params) "" (values "\tq_value " (string-join (map (lambda (x) (string-append "t_" (symbol->string x))) params) ", ") ";\n"))
+
+    (let loop ((params params) (n n))
+      (if (nil? params)
+        ""
+        (apply string-append
+          (loop (cdr params) (+ n 1))
+          (let ((param (car params)))
+            `("\tQ_FETCH(&s, " ,(number->string n) ", &t_" ,(symbol->string param) ");\n")))))))
+
+(define (store-temp-objects params n)
+  (string-append 
+    (if (nil? params) "" (values "\tq_value " (string-join (map (lambda (x) (string-append "o_" (symbol->string x))) params) ", ") ";\n"))
+
+    (let loop ((params params) (n n))
+      (if (nil? params)
+        ""
+        (apply string-append
+          (loop (cdr params) (+ n 1))
+          (let ((param (car params)))
+            `("\tQ_FETCH(&o, " ,(number->string n) ", &o_" ,(symbol->string param) ");\n")))))))
 
 (define (edit-stack params args n)
   (string-append 
@@ -74,6 +111,21 @@
               ,(cond 
                  ((symbol? arg) (values "t_" (symbol->string arg)))
                  ((number? arg) (values "Q_NUMBER(" (number->string arg) ")"))
+                 (else (error "bad argument"))) ");\n")))))))
+
+(define (edit-stack-objects params args n)
+  (string-append 
+    "\tQ_POP(&o, " (number->string (length params)) ");\n"
+    "\tQ_PUSH(&o, " (number->string (length args)) ");\n"
+    (let loop ((args args) (n n))
+      (if (nil? args)
+        ""
+        (apply string-append
+          (loop (cdr args) (+ n 1))
+          (let ((arg (car args)))
+            `("\tQ_STORE(&o, " ,(number->string n) ", " 
+              ,(cond 
+                 ((symbol? arg) (values "o_" (symbol->string arg)))
                  (else (error "bad argument"))) ");\n")))))))
 
 (define (cont->label cont)
@@ -114,32 +166,40 @@
       (goto (car conts)))
 
      ('alloc
-      (string-join `("q_alloc(&s);" ,(goto (car conts))) "\n\t"))
+      (string-join `("q_alloc(&s, &o);" ,(goto (car conts))) "\n\t"))
      ('store!
-      (string-join `("q_store(&s);" ,(goto (car conts))) "\n\t"))
+      (string-join `("q_store(&s, &o);" ,(goto (car conts))) "\n\t"))
      ('load
-      (string-join `("q_load(&s);" ,(goto (car conts))) "\n\t"))
+      (string-join `("q_load(&s, &o);" ,(goto (car conts))) "\n\t"))
      ('size
-      (string-join `("q_size(&s);" ,(goto (car conts))) "\n\t"))
+      (string-join `("q_size(&s, &o);" ,(goto (car conts))) "\n\t"))
+     ('drop
+      (string-join `("q_drop(&o);" ,(goto (car conts))) "\n\t"))
 
      (else (error (string-append "unrecognized operation " (symbol->string op)))))))
 
 
-(define (proc-body params args op conts)
+(define (proc-body params args op conts o-params o-args)
+  (validate-objects-stack-effect o-params o-args)
+
   (let* (
          (temp-section (store-temp params 0))
+         (temp-objects-section (store-temp-objects o-params 0))
          (edit-stack-section (edit-stack params args 0))
+         (edit-stack-objects-section (edit-stack-objects o-params o-args 0))
          (call-section (make-call op conts)))
 
-    (string-append "{\n" temp-section "\n" edit-stack-section "\n\t" call-section "\n}")))
+    (string-append "{\n" temp-section "\n" temp-objects-section "\n" edit-stack-section "\n" edit-stack-objects-section "\n\t" call-section "\n}")))
 
 (define (proc-to-c label proc)
   (let* ((params (list-ref proc 0))
          (args (list-ref proc 1))
          (op (list-ref proc 2))
          (conts (list-ref proc 3))
+         (o-params (list-ref proc 4))
+         (o-args (list-ref proc 5))
 
-         (body (proc-body params args op conts)))
+         (body (proc-body params args op conts o-params o-args)))
 
     (string-append label ":\n" body)))
 
@@ -151,7 +211,11 @@
     "\tq_stack s;\n"
     "\ts.base = calloc(Q_STACK_SIZE, sizeof(q_value));\n"
     "\ts.top = s.base;\n"
-
+    "\n"
+    "\tq_stack o;\n"
+    "\to.base = calloc(Q_STACK_SIZE, sizeof(q_value));\n"
+    "\to.top = o.base;\n"
+    "\n"
     "\tvoid *next = NULL;\n"
     "\t" (goto (cont->label start)) "\n"
     "\n"
