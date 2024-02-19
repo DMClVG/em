@@ -27,12 +27,15 @@
 (define mem1
   '(
     (() (128) alloc (1) () ())
-    (() (12 69) store! (2) (m) (m))
+    ((a b) (12 69) store! (2) (m) (m))
     (() (12) load (3) (m) (m))
     
     ((x) (x) print (4) (m) (m))
     (() () drop (5) (m) (m))
     (() () exit () () ())))
+
+(define (error n)
+  (display n))
 
 (define (trace x)
   (display x)
@@ -49,6 +52,14 @@
       (+ 1 (count x (cdr ls)))
       (count x (cdr ls)))))
 
+(define (delimited-list ls del)
+  (if (nil? ls) 
+    '()
+    (if (nil? (cdr ls)) 
+      (cons (car ls) '())
+      (cons (car ls) (cons del (delimited-list (cdr ls) del))))))
+(define (string-join ls del)
+  (apply string-append (delimited-list ls del)))
 (define (symlist->string ls)
   (string-join (map symbol->string ls) " "))
 
@@ -60,41 +71,34 @@
     (when (not (nil? params))
       (if (equal? (count (car params) args) 1)
         (next-param (cdr params))
-        (error "Invalid stack effect " (symlist->string params) (symlist->string args))))))
+        (error "Invalid stack effect ")))))
 
-(define (delimited-list ls del)
-  (if (nil? ls) 
-    '()
-    (if (nil? (cdr ls)) 
-      (cons (car ls) '())
-      (cons (car ls) (cons del (delimited-list (cdr ls) del))))))
 
-(define (string-join ls del)
-  (apply string-append (delimited-list ls del)))
 
 (define (store-temp params n)
-  (string-append 
+  (apply 
+    string-append 
     (if (nil? params) "" (values "\tq_value " (string-join (map (lambda (x) (string-append "t_" (symbol->string x))) params) ", ") ";\n"))
 
-    (let loop ((params params) (n n))
+    (let loop ((params params) (n n) (res '()))
       (if (nil? params)
-        ""
-        (apply string-append
-          (loop (cdr params) (+ n 1))
-          (let ((param (car params)))
-            `("\tQ_FETCH(&s, " ,(number->string n) ", &t_" ,(symbol->string param) ");\n")))))))
+        res
+        (loop (cdr params) (+ n 1)
+          (cons (string-append "\tQ_FETCH(&s, " (number->string n) ", &t_" (symbol->string (car params)) ");\n") res))))))
+         
 
 (define (store-temp-objects params n)
-  (string-append 
-    (if (nil? params) "" (values "\tq_value " (string-join (map (lambda (x) (string-append "o_" (symbol->string x))) params) ", ") ";\n"))
+  "")
+  ;;(string-append 
+  ;;  (if (nil? params) "" (values "\tq_value " (string-join (map (lambda (x) (string-append "o_" (symbol->string x))) params) ", ") ";\n"))
 
-    (let loop ((params params) (n n))
-      (if (nil? params)
-        ""
-        (apply string-append
-          (loop (cdr params) (+ n 1))
-          (let ((param (car params)))
-            `("\tQ_FETCH(&o, " ,(number->string n) ", &o_" ,(symbol->string param) ");\n")))))))
+  ;;  (let loop ((params params) (n n))
+  ;;    (if (nil? params)
+  ;;      ""
+  ;;      (apply string-append
+  ;;        (let ((param (car params)))
+  ;;          `("\tQ_FETCH(&o, " ,(number->string n) ", &o_" ,(symbol->string param) ");\n"))
+  ;;        (loop (cdr params) (+ n 1))))))
 
 (define (edit-stack params args n)
   (string-append 
