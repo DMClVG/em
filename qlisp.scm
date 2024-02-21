@@ -1,92 +1,101 @@
-(define 
- code 
- '(
-   (define (factorial n)
-     (if (equal? n 0) 
-       1
-       (* n (factorial (- n 1)))))
+(define
+  source
+  '(
+    (define main 
+      (lambda (a b c)
+        (print (+ a b))))))
 
-   (factorial 4)))
+(define (syntax-define name expr)
+  (append
+    (evaluate-expr expr)
+    `(define ,name 0)))
 
+(define (evaluate-expr expr)
+  (if (pair? expr)
+    (case (car expr)
+      ('define (make-define (list-ref expr 1) (list-ref expr 2)))
+      ('lambda (make-lambda (list-ref expr 1) (list-tail expr 2)))
+      ('+ (evaluate-+ (list-ref 1) (list-ref 2)))
+      ('print (evaluate-print (list-ref expr 1)))
+      ('fetch (evaluate-fetch (list-ref expr 1)))
+      (error "nope"))
+    (immediate expr)))
 
-    
-(define (todo)
-  (error "todo"))
-
-(define (assert-not-nil x)
-  (when (nil? x) (error "assertion failed")))
-
-(define (syntax-define-function name params body)
-  (syntax-define-value name (syntax-lambda params body)))
-
-(define* (chain state :rest ops)
-  (let* loop 
-    ((state state) 
-     (top (length (get-program-code state))) 
-     (ops ops)) 
-
-    (if (nil? ops)
-     (values state top)
-     (loop (cons (+ 1 top) (car ops)) (+ 1 top) (cdr ops)))))
-
-;; DEFINITIONS
-
-(define (allocate-definition-slot state name)
-  (let (defs (get-definitions state))
-    (cons `(,name ,(length defs)) defs)))
-
-(define (get-definition-slot state name)
-  (cdr (assoc name (get-definitions state))))
-
-(define (store-in-definition-slot slot)
-  (values
-    `(() store! (v t) (,(+ (* slot 2) 1) v t) (d p) (d p))
-    `(() store! (t) (,(+ (* slot 2) 0) t) (d p) (d p))))
-
-(define (syntax-define-value state name expr)
-  (let* ((state (allocate-definition-slot state name)))
-    (list 
-      state 
-      (evaluate-expression state expr)
-      (store-in-definition-slot (get-definition-slot state name)))))
-
-;; LAMBDAS
-
-(define (make-lambda state tag)
-  `((,tag) lambda () () () ()))
-
-(define (evaluate-lambda-body params)
-     ()) 
-
-(define (syntax-lambda state params body)
-  (make-lambda (evaluate-lambda-body state params body)))
-
-;; EXPRESSION
-
-(define (evaluate-expression state env expr)
-  (case (car expr)
-    ('lambda (syntax-lambda state (list-ref expr 1) (list-tail expr 2)))
-
-    ('if (syntax-if (list-ref expr 1) (list-ref expr 2) (list-ref expr 3)))
-
-    ('* (syntax-binary '* (cdr expr)))
-    ('- (syntax-minus - (cdr expr)))
-
-    ('equal? (syntax-equal? (cdr expr)))
-
-    (else 
-      ())))
-
-;; MAIN
-
-(define (compile-scheme code)
-  (let ()
-    ()))
+(define (syntax-lambda params body)
+  `(lambda ,(length params) ,(apply append (map evaluate-expr body))))
 
 (define (trace x)
   (display x)
   (newline)
   x)
 
-(trace (store-in-definition-slot '() 0))
-(compile-scheme code)
+(trace (syntax-lambda '(a b c) '(print (+ a b)))) 
+     
+
+(define
+  ir
+  '(
+
+    (lambda 3
+         1
+         (+ 1 2) 
+         (print 0)
+         (print 1)
+         (fetch main)
+         (print 2))
+
+    (define main 0))) 
+
+(define definitions '())
+(define lambdas '())
+
+(define (todo)
+  (error "todo"))
+
+(define (evaluate-print x)
+  (string-append "q_print(&s, " (number->string x) ");"))
+
+(define (evaluate-+ a b)
+  (string-append "q_add(&s, " (number->string a) , (number->string b) ");"))
+
+(define (define->cdefine name)
+  (string-append "d_" (symbol->string name)))
+
+(define (make-lambda paramcount body)
+  (declare-lambda)
+  (string-append "q_make_lambda(&s, &&" (symbol->string label) ");"))
+
+(define (declare-definition definitions name)
+  (append (define->cdefine name) definitions))
+
+(define (make-define name x)
+  (declare-definition name)
+  (string-append "Q_FETCH(&s, " (number->string x) ", &" (define->cdefine name) "); Q_POP(&s, 1);"))
+
+(define (immediate x)
+  (cond
+    ((number? x) (string-append "Q_PUSH(&s, 1); Q_STORE(&s, 0, Q_NUMBER(" (number->string x) "));"))
+    (else (error "nope"))))
+
+
+(define (tail? body)
+  (equal? (length body) 1))
+
+(define (syntax-lambda params body)
+  (string-join
+   (let next-expr ((body body))
+     (cond 
+       ((null? body) "")
+       ((tail-expr? body)
+        () 
+        (next-expr (cdr body)))
+         
+       (else 
+         (evaluate-expr (car))
+         (next-expr (cdr body)))))))
+
+(define (compile-to-c source)
+
+  (kkk))
+                   
+  
