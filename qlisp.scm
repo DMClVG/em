@@ -14,12 +14,25 @@
 
 (define (syntax-+ a b env cont)
   (evaluate-expr b env
-    (evaluate-expr a env `(+ ,cont))))
+    (evaluate-expr a (env-offset env) `(+ ,cont))))
+
+(define (env-offset env)
+  (map (lambda (x) (cons (car x) (+ (cdr x) 1))) env))
 
 (define (evaluate-thunk thunk env cont)
   (if (null? thunk)
     cont
-    (evaluate-expr (car thunk) env (evaluate-thunk (cdr thunk) env cont))))
+    (evaluate-expr 
+      (car thunk) 
+      env 
+      (if (pair? (cdr thunk)) 
+        `(drop ,(evaluate-thunk (cdr thunk) env cont))
+        (evaluate-thunk (cdr thunk) env cont)))))
+
+(define (evaluate-many exprs env cont)
+  (if (null? exprs)
+    cont
+    (evaluate-expr (car exprs) env (evaluate-many (cdr exprs) env cont))))
 
 (define (syntax-lambda params body cont)
   (let ((env (params->env params)))
@@ -28,11 +41,6 @@
           ,(evaluate-thunk body env '())
           ,cont)))
 
-;;(define (evaluate-thunk thunk env))
-
-(define (evaluate- args env cont)
-  `())
-
 (define (evaluate-expr expr env cont)
     (if (pair? expr)
       (case (car expr)
@@ -40,7 +48,7 @@
         ('lambda (syntax-lambda (list-ref expr 1) (list-tail expr 2) cont))
         ('+ (syntax-+ (list-ref expr 1) (list-ref expr 2) env cont))
         ('print (syntax-print (list-ref expr 1) env cont))
-        (else (evaluate-thunk (reverse expr) env `(call ,(length (cdr expr)) ,cont)))) 
+        (else (evaluate-many (reverse expr) env `(call ,(length (cdr expr)) ,cont)))) 
           
       (immediate expr env cont)))
 
@@ -57,50 +65,16 @@
       (newline))
     vals))
 
-(define
-  ir
-  '(
-
-    (lambda 3
-         1
-         (+ 1 2) 
-         (print 0)
-         (print 1)
-         (fetch main)
-         (print 2))
-
-    (define main 0))) 
-
-(define definitions '())
-(define lambdas '())
-
 (define (todo)
   (error "todo"))
-
-(define (evaluate-print x)
-  (string-append "q_print(&s, " (number->string x) ");"))
-
-(define (evaluate-+ a b)
-  (string-append "q_add(&s, " (number->string a) , (number->string b) ");"))
 
 (define (define->cdefine name)
   (string-append "d_" (symbol->string name)))
 
-(define (make-lambda paramcount body)
-  (declare-lambda)
-  (string-append "q_make_lambda(&s, &&" (symbol->string label) ");"))
-
-(define (declare-definition definitions name)
-  (append (define->cdefine name) definitions))
-
-(define (make-define name x)
-  (declare-definition name)
-  (string-append "Q_FETCH(&s, " (number->string x) ", &" (define->cdefine name) "); Q_POP(&s, 1);"))
-
 (define (env-variable-pointer env name cont)
   (let ((match (assoc name env)))
     (if match
-      `(arg ,(cdr match) ,cont)
+      `(pick ,(cdr match) ,cont)
       `(fetch ,name ,cont))))
 
 (define (immediate x env cont)
@@ -119,7 +93,12 @@
 (define (to-c ir)
   (let next ((op ir) (code '()) (lambdas '()) (defines '()) (fetches '()))
     (if (null? op) 
-      (values (cons code lambdas) defines fetches)      
+      (values 
+        (cons (cons 
+                "q_pop_ret(&r, &next);"  
+                code) lambdas) 
+        defines 
+        fetches)      
 
       (case (car op)
         ('lambda 
@@ -153,15 +132,14 @@
              (lambda () (next cont '() lambdas defines fetches))
 
              (lambda (lambdas2 defines2 fetches2)
-               (next 
-                '()
+               (values 
                  (cons 
-                   (string-append 
-                     "q_call(&s, &r, &&" 
-                     (lambda->label (- (length lambdas2) 1))
-                     ");") 
-                   code) 
-                 lambdas2 
+                   (cons 
+                     "q_call(&s, &next);" 
+                     (cons
+                       (string-append "q_push_ret(&r, &&" (lambda->label (- (length lambdas2) 1)) ");")
+                       code))
+                   lambdas2) 
                  defines2
                  fetches2)))))
 
@@ -172,20 +150,9 @@
 
            (next 
              cont 
-             (cons "Q_POP(&s, 1);" (cons (string-append "Q_FETCH(&s, 0, &" (define->cdefine name) ");") code))
+             (cons (string-append "Q_FETCH(&s, 0, &" (define->cdefine name) ");") code)
              lambdas 
              (cons name defines)
-             fetches)))
-
-        ('arg 
-         (let 
-           ((n (list-ref op 1))
-            (cont (list-ref op 2)))
-           (next 
-             cont 
-             (cons (string-append "Q_ARG(&a, &s, " (number->string n) ");") code)
-             lambdas 
-             defines
              fetches)))
 
         ('number
@@ -233,6 +200,35 @@
              lambdas
              defines
              (cons name fetches))))
+
+        ('drop
+         (let 
+           ((cont (list-ref op 1)))
+           (next
+             cont
+             (cons 
+               "Q_POP(&s, 1);"
+               code)
+             lambdas
+             defines
+             fetches)))
+
+        ('pick
+         (let 
+            ((n (list-ref op 1))
+             (cont (list-ref op 2)))
+           (next
+             cont
+             (cons 
+               "Q_STORE(&s, 0, &temp);"
+               (cons
+                 "Q_PUSH(&s, 1);" 
+                 (cons 
+                   (string-append "Q_FETCH(&s, " (number->string n) ", &temp);") 
+                   code)))
+             lambdas
+             defines
+             fetches)))
 
         (else (error "nuh-uh"))))))
        
@@ -294,9 +290,6 @@
    (filter (lambda (x) (not (member x b))) a))
   
 (define (stitch-program lambdas defines fetches)
-  (trace lambdas)
-  (trace defines)
-  (trace fetches)
   (string-join 
     `(
       "#include <qruntime.h>"
@@ -309,8 +302,7 @@
       ""
       "int main() {" 
       "q_stack s;"
-      "q_stack r;"
-      "q_stack a;"
+      "q_rets r;"
       "void* next;"
       "next = NULL;"
       ,(stitch-lambdas lambdas)
@@ -318,26 +310,28 @@
       "\n}")
     "\n"))
 
-(begin 
-  "tests"
-  (trace 
-    (syntax-lambda 
-      '(a b c) 
-      '((print (+ (+ a c) b)) 
-        (print 0))
-      '())
+;;(begin 
+;;  "tests"
+;;  (trace 
+;;    (syntax-lambda 
+;;      '(a b c) 
+;;      '((print (+ (+ a c) b)) 
+;;        (print 0))
+;;      '())
+;;
+;;    (evaluate-thunk '((1) (+ 1 2)) '() '())))
 
-    (evaluate-thunk '((1) (+ 1 2)) '() '())
+    
 
-    (stitch-program (to-c (evaluate-thunk '(
-                                            (define sum 
-                                              (lambda (a b c) 
-                                                (lambda (a b c) 
-                                                  (print (+ (+ b b) c))))) 
+(display 
+  (stitch-program (to-c (evaluate-thunk '(
+                                          (define sum 
+                                             (lambda (a b c) 
+                                               (lambda (a b c) 
+                                                 (print (+ (+ b b) c))))) 
 
-                                            (sum 1 2 3)
-                                            (sum 22 33 11)) '() '())))))
-
+                                          (sum 1 2 3)
+                                          (sum 22 33 11)) '() '()))))
   ;(trace (stitch-program 
       ;   (to-c (syntax-define 'f '((+ 1 2) 3 2) '())))) 
   ;;(trace  

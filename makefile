@@ -6,8 +6,8 @@ OBJECTS=out.o
 
 $(P): $(OBJECTS)
 
-out.c: q.scm
-	./repl q.scm > $@
+out.c: qlisp.scm
+	./repl qlisp.scm > $@
 
 clean: 
 	rm -f out.c
