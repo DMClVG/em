@@ -24,6 +24,12 @@ typedef struct {
   q_value* top;
 } q_stack;
 
+
+typedef struct {
+  void** base;
+  void** top;
+} q_rets;
+
 typedef struct {
   uint64_t size;
   uint8_t data[];
@@ -69,6 +75,37 @@ static inline void q_check_stack_overflow(q_stack *s, uint64_t n)
     fprintf(stderr, "Stack overflow\n"); 
     exit(-1);
   }
+}
+
+static inline void q_init_stack(q_stack *s)
+{
+  s->base = calloc(Q_STACK_SIZE, sizeof(q_value));
+  s->top = s->base;
+}
+
+
+static inline void q_init_rets(q_rets *r)
+{
+  r->base = calloc(Q_STACK_SIZE, sizeof(void*));
+  r->top = r->base;
+}
+
+static inline void q_push_ret(q_rets *r, void *p)
+{
+  *r->top = p;
+  r->top++;
+  if (r->top - r->base >= Q_STACK_SIZE)
+    exit(-1);
+}
+
+
+static inline void q_pop_ret(q_rets *r, void **p)
+{
+  if (r->top - r->base == 0)
+    exit(-1);
+
+  r->top--;
+  *p = *r->top;
 }
 
 static inline void q_print(q_stack *s)

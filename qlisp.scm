@@ -115,7 +115,7 @@
                  cont
                  (cons 
                    (string-append 
-                     "q_lambda(&s, &&" 
+                     "q_make_lambda(&s, &&" 
                      (lambda->label (- (length lambdas2) 1))
                      ");") 
                    code) 
@@ -220,7 +220,7 @@
            (next
              cont
              (cons 
-               "Q_STORE(&s, 0, &temp);"
+               "Q_STORE(&s, 0, temp);"
                (cons
                  "Q_PUSH(&s, 1);" 
                  (cons 
@@ -292,7 +292,7 @@
 (define (stitch-program lambdas defines fetches)
   (string-join 
     `(
-      "#include <qruntime.h>"
+      "#include \"qruntime.h\""
       ""
       "// defines"
       ,(stitch-defines (dedupe defines))
@@ -304,8 +304,14 @@
       "q_stack s;"
       "q_rets r;"
       "void* next;"
+      "q_value temp;"
+      "q_init_rets(&r);"
+      "q_init_stack(&s);"
+      "q_push_ret(&r, &&end);"
       "next = NULL;"
+      ,(string-append "goto " (lambda->label (- (length lambdas) 1)) ";")
       ,(stitch-lambdas lambdas)
+      "end:"
       "return 0;"
       "\n}")
     "\n"))
@@ -321,18 +327,25 @@
 ;;
 ;;    (evaluate-thunk '((1) (+ 1 2)) '() '())))
 
+(define (read-all port)
+  (let ((read-value (read port)))
+    (if (eof-object? read-value)
+      '()
+      (cons read-value (read-all port)))))
     
+(display (stitch-program (to-c (evaluate-thunk (read-all *stdin*) '() '()))))
 
-(display 
-  (stitch-program (to-c (evaluate-thunk '(
-                                          (define sum 
-                                             (lambda (a b c) 
-                                               (lambda (a b c) 
-                                                 (print (+ (+ b b) c))))) 
-
-                                          (sum 1 2 3)
-                                          (sum 22 33 11)) '() '()))))
+;;(display 
+;;  (stitch-program (to-c (evaluate-thunk '(
+;;                                          (define sum 
+;;                                             (lambda () 
+;;                                               (lambda (a b c) 
+;;                                                 (print (+ (+ b a) c))))) 
+;;
+;;                                          ((sum) 1 2 3)
+;;                                          ((sum ) 22 33 44)) 
+;;                                        '() '()))))
   ;(trace (stitch-program 
-      ;   (to-c (syntax-define 'f '((+ 1 2) 3 2) '())))) 
+     ;   (to-c (syntax-define 'f '((+ 1 2) 3 2) '())))) 
   ;;(trace  
    ;;        (syntax-define 'f '((+ 1 2) 3 2) '())))) 
