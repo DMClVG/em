@@ -6,58 +6,49 @@
       (lambda (a b c)
         (print (+ a b))))))
 
-(define (syntax-define name expr env)
-  (append
-    (evaluate-expr expr env)
-    `((define ,name))))
+(define (syntax-define name expr env cont)
+  (evaluate-expr expr env `(define ,name ,cont)))
 
-(define (syntax-print x env)
-  (append
-    (evaluate-expr x env)
-    `((print))))
+(define (syntax-print expr env cont)
+  (evaluate-expr expr env `(print ,cont)))
+
+(define (syntax-+ a b env cont)
+  (evaluate-expr b env
+    (evaluate-expr a env `(+ ,cont))))
+
+(define (evaluate-thunk thunk env cont)
+  (if (null? thunk)
+    cont
+    (evaluate-expr (car thunk) env (evaluate-thunk (cdr thunk) env cont))))
+
+(define (syntax-lambda params body cont)
+  (let ((env (params->env params)))
+    `(lambda 
+          ,(length params) 
+          ,(evaluate-thunk body env '())
+          ,cont)))
 
 ;;(define (evaluate-thunk thunk env))
 
-(define (evaluate-expr expr env)
-  (if (pair? expr)
-    (case (car expr)
-      ('define (syntax-define (list-ref expr 1) (list-ref expr 2) env ())) 
-      ('lambda (syntax-lambda (list-ref expr 1) (list-tail expr 2)))
-      ('+ (syntax-+ (list-ref expr 1) (list-ref expr 2) env))
-      ('print (syntax-print (list-ref expr 1) env))
-      (else (apply append (map (evaluate-expr-with-env env) (reverse expr)))))
-    (immediate expr env)))
+(define (evaluate- args env cont)
+  `())
 
-
-(define (call? expr)
-  (case (car expr)
-    ('define #f)
-    ('lambda #f)
-    ('+ #f)
-    ('print #f)
-    (else #t)))
-
-(define (evaluate-expr-with-env env)
-  (lambda (expr) (evaluate-expr expr env)))
+(define (evaluate-expr expr env cont)
+    (if (pair? expr)
+      (case (car expr)
+        ('define (syntax-define (list-ref expr 1) (list-ref expr 2) env cont)) 
+        ('lambda (syntax-lambda (list-ref expr 1) (list-tail expr 2) cont))
+        ('+ (syntax-+ (list-ref expr 1) (list-ref expr 2) env cont))
+        ('print (syntax-print (list-ref expr 1) env cont))
+        (else (evaluate-thunk (reverse expr) env `(call ,(length (cdr expr)) ,cont)))) 
+          
+      (immediate expr env cont)))
 
 (define (params->env params)
   (let next-param ((params params) (res '()))
     (if (pair? params)
       (next-param (cdr params) (cons (cons (car params) (length res)) res))
       res)))
-
-(define (evaluate-thunk ))
-
-(define (syntax-lambda params body)
-  (let ((env (params->env params)))
-    `((lambda 
-        ,(length params) 
-        ,(let loop ((exprs body))
-           (if (call? (car exprs))
-             (append
-                (evaluate-expr (car exprs) env)
-               `((call ,(- (length (car exprs)) 1) ,(evaluate-expr ()))))
-             (evaluate-expr (car exprs) env)))))))
 
 (define (trace . vals)
   (for-each 
@@ -89,12 +80,6 @@
 (define (evaluate-print x)
   (string-append "q_print(&s, " (number->string x) ");"))
 
-(define (syntax-+ a b env)
-  (append
-    (evaluate-expr b env)
-    (evaluate-expr a env)
-    '((+))))
-
 (define (evaluate-+ a b)
   (string-append "q_add(&s, " (number->string a) , (number->string b) ");"))
 
@@ -112,16 +97,16 @@
   (declare-definition name)
   (string-append "Q_FETCH(&s, " (number->string x) ", &" (define->cdefine name) "); Q_POP(&s, 1);"))
 
-(define (env-variable-pointer env name)
+(define (env-variable-pointer env name cont)
   (let ((match (assoc name env)))
     (if match
-      `(arg ,(cdr match))
-      `(fetch ,name))))
+      `(arg ,(cdr match) ,cont)
+      `(fetch ,name ,cont))))
 
-(define (immediate x env)
+(define (immediate x env cont)
   (cond
-    ((number? x) `((number ,x)))
-    ((symbol? x) `(,(env-variable-pointer env x)))
+    ((number? x) `(number ,x ,cont))
+    ((symbol? x) (env-variable-pointer env x cont))
     (else (error "nope"))))
 
 
@@ -132,104 +117,124 @@
   (string-append "f_" (number->string id)))
 
 (define (to-c ir)
-  (let next ((ir ir) (code '()) (lambdas '()) (defines '()) (fetches '()))
-    (if (null? ir) 
+  (let next ((op ir) (code '()) (lambdas '()) (defines '()) (fetches '()))
+    (if (null? op) 
       (values (cons code lambdas) defines fetches)      
 
-      (let ((op (car ir)))
-        (case (car op)
-          ('lambda 
+      (case (car op)
+        ('lambda 
+         (let 
+           ((paramcount (list-ref op 1))
+            (thunk (list-ref op 2))
+            (cont (list-ref op 3)))
+
            (call-with-values 
-             (lambda () (to-c (list-ref op 2)))
+             (lambda () (to-c thunk))
+
              (lambda (lambdas2 defines2 fetches2)
                (next 
-                 (cdr ir) 
+                 cont
                  (cons 
                    (string-append 
                      "q_lambda(&s, &&" 
-                     (lambda->label (- (+ (length lambdas) (length lambdas2)) 1))
+                     (lambda->label (+ (length lambdas) (length lambdas2)))
                      ");") 
                    code) 
                  (append lambdas lambdas2) 
                  (append defines defines2)
-                 (append fetches fetches2)))))
+                 (append fetches fetches2))))))
 
-          ('call
+        ('call
+         (let 
+           ((argcount (list-ref op 1))
+            (cont (list-ref op 2)))
+
            (call-with-values 
-             (lambda () (to-c (list-ref op 1)))
+             (lambda () (to-c cont))
+
              (lambda (lambdas2 defines2 fetches2)
                (next 
-                 (cdr ir) 
+                '()
                  (cons 
                    (string-append 
                      "q_call(&s, &r, &&" 
-                     (lambda->label (- (+ (length lambdas) (length lambdas2)) 1))
+                     (lambda->label (- (length lambdas2) 1))
                      ");") 
                    code) 
                  (append lambdas lambdas2) 
                  (append defines defines2)
-                 (append fetches fetches2)))))
+                 (append fetches fetches2))))))
 
-           ;;(next
-           ;; code
-           ;; (cons (to-c (list-ref op 2))))
-             
-          ('arg 
+        ('define 
+         (let 
+           ((name (list-ref op 1))
+            (cont (list-ref op 2)))
+
            (next 
-             (cdr ir)
-             (cons (string-append "Q_ARG(&a, &s, " (number->string (list-ref op 1)) ");") code)
+             cont 
+             (cons "Q_POP(&s, 1);" (cons (string-append "Q_FETCH(&s, 0, &" (define->cdefine name) ");") code))
+             lambdas 
+             (cons name defines)
+             fetches)))
+
+        ('arg 
+         (let 
+           ((n (list-ref op 1))
+            (cont (list-ref op 2)))
+           (next 
+             cont 
+             (cons (string-append "Q_ARG(&a, &s, " (number->string n) ");") code)
              lambdas 
              defines
-             fetches))
+             fetches)))
 
-          ('+ 
-           (next 
-             (cdr ir)
-             (cons "q_add(&s);" code)
-             lambdas 
-             defines
-             fetches))
-
-          ('print 
-           (next 
-             (cdr ir)
-             (cons "q_print(&s);" code)
-             lambdas 
-             defines
-             fetches))
-
-          ('define 
-           (let ((name (list-ref op 1)))
-             (next 
-               (cdr ir)
-               (cons "Q_POP(&s, 1);" (cons (string-append "Q_FETCH(&s, &" (define->cdefine name) ");") code))
-               lambdas 
-               (cons name defines)
-               fetches)))
-
-          ('number
+        ('number
+         (let
+           ((x (list-ref op 1))
+            (cont (list-ref op 2)))
            (next
-             (cdr ir)
+             cont
              (cons 
                (string-append "Q_STORE(&s, 0, Q_NUMBER(" (number->string (list-ref op 1)) "));") 
                (cons "Q_PUSH(&s, 1);" code))
              lambdas
              defines
-             fetches))
+             fetches)))
 
+        ('print
+          (let 
+            ((cont (list-ref op 1)))
+            (next
+              cont
+              (cons "q_print(&s);" code)
+              lambdas
+              defines
+              fetches)))
+             
+        ('+
+          (let 
+            ((cont (list-ref op 1)))
+            (next
+              cont
+              (cons "q_add(&s);" code)
+              lambdas
+              defines
+              fetches)))
 
-          ('fetch
-           (let ((name (list-ref op 1)))
-             (next
-               (cdr ir)
-               (cons 
-                 (string-append "Q_STORE(&s, 0, " (define->cdefine name) ");")
-                 (cons "Q_PUSH(&s, 1);" code))
-               lambdas
-               defines
-               (cons name fetches))))
+        ('fetch
+         (let 
+            ((name (list-ref op 1))
+             (cont (list-ref op 2)))
+           (next
+             cont
+             (cons 
+               (string-append "Q_STORE(&s, 0, " (define->cdefine name) ");")
+               (cons "Q_PUSH(&s, 1);" code))
+             lambdas
+             defines
+             (cons name fetches))))
 
-          (else (error "nuh-uh")))))))
+        (else (error "nuh-uh"))))))
        
 (define (delimited-list ls del)
   (if (null? ls) 
@@ -315,8 +320,25 @@
 
 (begin 
   "tests"
-  (trace (syntax-lambda '(a b c) '((print (+ (+ a c) b))))) 
+  (trace 
+    (syntax-lambda 
+      '(a b c) 
+      '((print (+ (+ a c) b)) 
+        (print 0))
+      '())
+
+    (evaluate-thunk '((1) (+ 1 2)) '() '())
+
+    (stitch-program (to-c (evaluate-thunk '(
+                                            (define sum 
+                                              (lambda (a b c) 
+                                                (lambda (a b c) 
+                                                  (print (+ (+ b b) c))))) 
+
+                                            (sum 1 2 3)
+                                            (sum 22 33 11)) '() '())))))
+
   ;(trace (stitch-program 
-        ;   (to-c (syntax-define 'f '((+ 1 2) 3 2) '())))) 
-  (trace  
-           (syntax-define 'f '((+ 1 2) 3 2) '()))) 
+      ;   (to-c (syntax-define 'f '((+ 1 2) 3 2) '())))) 
+  ;;(trace  
+   ;;        (syntax-define 'f '((+ 1 2) 3 2) '())))) 
