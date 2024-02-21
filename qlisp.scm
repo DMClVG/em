@@ -129,7 +129,7 @@
             (cont (list-ref op 3)))
 
            (call-with-values 
-             (lambda () (to-c thunk))
+             (lambda () (next thunk '() lambdas defines fetches))
 
              (lambda (lambdas2 defines2 fetches2)
                (next 
@@ -137,12 +137,12 @@
                  (cons 
                    (string-append 
                      "q_lambda(&s, &&" 
-                     (lambda->label (+ (length lambdas) (length lambdas2)))
+                     (lambda->label (- (length lambdas2) 1))
                      ");") 
                    code) 
-                 (append lambdas lambdas2) 
-                 (append defines defines2)
-                 (append fetches fetches2))))))
+                 lambdas2 
+                 defines2
+                 fetches2)))))
 
         ('call
          (let 
@@ -150,7 +150,7 @@
             (cont (list-ref op 2)))
 
            (call-with-values 
-             (lambda () (to-c cont))
+             (lambda () (next cont '() lambdas defines fetches))
 
              (lambda (lambdas2 defines2 fetches2)
                (next 
@@ -161,9 +161,9 @@
                      (lambda->label (- (length lambdas2) 1))
                      ");") 
                    code) 
-                 (append lambdas lambdas2) 
-                 (append defines defines2)
-                 (append fetches fetches2))))))
+                 lambdas2 
+                 defines2
+                 fetches2)))))
 
         ('define 
          (let 
@@ -255,7 +255,7 @@
   (string-append 
     (lambda->label id) ": {\n"
     (string-join (reverse l) "\n")
-    "\nQ_RET(&r, &next);\ngoto *next; \n}"))
+    "\ngoto *next;\n}"))
 
 (define (stitch-lambdas lambdas)
   (let loop ((lambdas (reverse lambdas)) (id 0))
