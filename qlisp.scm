@@ -47,6 +47,9 @@
           ,(evaluate-thunk body env '())
           ,cont)))
 
+(define (syntax-import module env cont)
+  `(import ,module ,cont))
+
 (define (evaluate-expr expr env cont)
     (if (pair? expr)
       (case (car expr)
@@ -54,6 +57,7 @@
         ('lambda (syntax-lambda (list-ref expr 1) (list-tail expr 2) cont))
         ('+ (syntax-+ (list-ref expr 1) (list-ref expr 2) env cont))
         ('print (syntax-print (list-ref expr 1) env cont))
+        ('import (syntax-import (list-ref expr 1) env cont))
         (else (evaluate-many (reverse expr) env `(call ,(length (cdr expr)) ,cont)))) 
           
       (immediate expr env cont)))
@@ -97,14 +101,15 @@
   (string-append "f_" (number->string id)))
 
 (define (to-c ir)
-  (let next ((op ir) (code '()) (lambdas '()) (defines '()) (fetches '()) (paramcount 0))
+  (let next ((op ir) (code '()) (lambdas '()) (defines '()) (fetches '()) (imports '()) (paramcount 0))
     (if (null? op) 
       (values 
         (cons (cons 
-                "q_pop_ret(&r, &next);"  
+                "q_pop_ret(r, next);"  
                 code) lambdas) 
         defines 
-        fetches)      
+        fetches      
+        imports)
         
 
       (case (car op)
@@ -115,20 +120,21 @@
             (cont (list-ref op 3)))
 
            (call-with-values 
-             (lambda () (next thunk '() lambdas defines fetches paramcount2))
+             (lambda () (next thunk '() lambdas defines fetches imports paramcount2))
 
-             (lambda (lambdas2 defines2 fetches2)
+             (lambda (lambdas2 defines2 fetches2 imports2)
                (next 
                  cont
                  (cons 
                    (string-append 
-                     "q_make_lambda(&s, &&" 
+                     "q_make_lambda(s, &" 
                      (lambda->label (- (length lambdas2) 1))
                      ");") 
                    code) 
                  lambdas2 
                  defines2
                  fetches2
+                 imports2
                  paramcount)))))
 
         ('call
@@ -140,27 +146,50 @@
              (values
                (cons 
                  (cons 
-                   (string-append "q_call_tail(&s, " (number->string argcount) ", " (number->string paramcount) ", &next);") 
+                   (string-append "q_call_tail(s, " (number->string argcount) ", " (number->string paramcount) ", next);") 
                    code) 
                  lambdas)
                defines
-               fetches)
+               fetches
+               imports)
              
              (call-with-values 
-               (lambda () (next cont '() lambdas defines fetches paramcount))
+               (lambda () (next cont '() lambdas defines fetches imports paramcount))
 
-               (lambda (lambdas2 defines2 fetches2)
+               (lambda (lambdas2 defines2 fetches2 imports2)
                  (values 
                    (cons 
                      (cons 
-                       "q_call(&s, &next);" 
-                       (if ())
+                       "q_call(s, next);" 
                        (cons
-                         (string-append "q_push_ret(&r, &&" (lambda->label (- (length lambdas2) 1)) ");")
+                         (string-append "q_push_ret(r, &" (lambda->label (- (length lambdas2) 1)) ");")
                          code))
                      lambdas2) 
                    defines2
-                   fetches2))))))
+                   fetches2
+                   imports2))))))
+
+
+        ('import
+         (let 
+           ((module (list-ref op 1))
+            (cont (list-ref op 2)))
+
+           (call-with-values 
+            (lambda () (next cont '() lambdas defines fetches imports paramcount))
+
+            (lambda (lambdas2 defines2 fetches2 imports2)
+              (values 
+                (cons 
+                  (cons 
+                    (string-append "*next = &"(symbol->string module)"_toplevel;")
+                    (cons
+                      (string-append "q_push_ret(r, &" (lambda->label (- (length lambdas2) 1)) ");")
+                      code))
+                  lambdas2) 
+                defines2
+                fetches2
+                (cons module imports2))))))
 
         ('define 
          (let 
@@ -169,10 +198,11 @@
 
            (next 
              cont 
-             (cons (string-append "Q_FETCH(&s, 0, &" (define->cdefine name) ");") code)
+             (cons (string-append "Q_FETCH(s, 0, &" (define->cdefine name) ");") code)
              lambdas 
              (cons name defines)
              fetches
+             imports
              paramcount)))
 
         ('number
@@ -182,11 +212,12 @@
            (next
              cont
              (cons 
-               (string-append "Q_STORE(&s, 0, Q_NUMBER(" (number->string (list-ref op 1)) "));") 
-               (cons "Q_PUSH(&s, 1);" code))
+               (string-append "Q_STORE(s, 0, Q_NUMBER(" (number->string (list-ref op 1)) "));") 
+               (cons "Q_PUSH(s, 1);" code))
              lambdas
              defines
              fetches
+             imports
              paramcount)))
 
         ('print
@@ -194,10 +225,11 @@
             ((cont (list-ref op 1)))
             (next
               cont
-              (cons "q_print(&s);" code)
+              (cons "q_print(s);" code)
               lambdas
               defines
               fetches
+              imports
               paramcount)))
              
         ('+
@@ -205,10 +237,11 @@
             ((cont (list-ref op 1)))
             (next
               cont
-              (cons "q_add(&s);" code)
+              (cons "q_add(s);" code)
               lambdas
               defines
               fetches
+              imports
               paramcount)))
 
         ('fetch
@@ -218,11 +251,12 @@
            (next
              cont
              (cons 
-               (string-append "Q_STORE(&s, 0, " (define->cdefine name) ");")
-               (cons "Q_PUSH(&s, 1);" code))
+               (string-append "Q_STORE(s, 0, " (define->cdefine name) ");")
+               (cons "Q_PUSH(s, 1);" code))
              lambdas
              defines
              (cons name fetches)
+             imports
              paramcount)))
 
         ('drop
@@ -231,11 +265,12 @@
            (next
              cont
              (cons 
-               "Q_POP(&s, 1);"
+               "Q_POP(s, 1);"
                code)
              lambdas
              defines
              fetches
+             imports
              paramcount)))
 
         ('pick
@@ -245,15 +280,16 @@
            (next
              cont
              (cons 
-               "Q_STORE(&s, 0, temp);"
+               "Q_STORE(s, 0, temp);"
                (cons
-                 "Q_PUSH(&s, 1);" 
+                 "Q_PUSH(s, 1);" 
                  (cons 
-                   (string-append "Q_FETCH(&s, " (number->string n) ", &temp);") 
+                   (string-append "Q_FETCH(s, " (number->string n) ", &temp);") 
                    code)))
              lambdas
              defines
              fetches
+             imports
              paramcount)))
 
         (else (error "nuh-uh"))))))
@@ -273,19 +309,20 @@
       (cons (car e) (dedupe (filter (lambda (x) (not (equal? x (car e)))) 
                                     (cdr e))))))
 
-(define (stitch-lambda id l)
+(define (stitch-lambda module id l)
   (string-append 
-    (lambda->label id) ": {\n"
+    "static void " (lambda->label id)"(q_stack *s, q_rets *r, void **next) {\n"
+    "q_value temp;\n"
     (string-join (reverse l) "\n")
-    "\ngoto *next;\n}"))
+    "\n}"))
 
-(define (stitch-lambdas lambdas)
+(define (stitch-lambdas module lambdas)
   (let loop ((lambdas (reverse lambdas)) (id 0))
      (if (null? lambdas)
       ""
       (begin
         (string-append
-          (stitch-lambda id (car lambdas))
+          (stitch-lambda module id (car lambdas))
           "\n"
           (loop (cdr lambdas) (+ 1 id)))))))
 
@@ -295,6 +332,15 @@
        (if (null? ls)
         '()
         (cons (string-append "q_value " (define->cdefine (car ls)) ";") (loop (cdr ls)))))
+    "\n"))
+
+
+(define (stitch-imports imports)
+  (string-join
+    (let loop ((ls imports))
+       (if (null? ls)
+        '()
+        (cons (string-append "void "(symbol->string (car ls))"_toplevel(q_stack* s, q_rets *r, void** next);") (loop (cdr ls)))))
     "\n"))
 
 (define (stitch-extern-defines defines)
@@ -314,8 +360,9 @@
 
 (define (difference a b)
    (filter (lambda (x) (not (member x b))) a))
+
   
-(define (stitch-program lambdas defines fetches)
+(define (stitch-program module lambdas defines fetches imports)
   (string-join 
     `(
       "#include \"qruntime.h\""
@@ -326,20 +373,16 @@
       "// extern"
       ,(stitch-extern-defines (difference (dedupe fetches) defines))
       ""
-      "int main() {" 
-      "q_stack s;"
-      "q_rets r;"
-      "void* next;"
-      "q_value temp;"
-      "q_init_rets(&r);"
-      "q_init_stack(&s);"
-      "q_push_ret(&r, &&end);"
-      "next = NULL;"
-      ,(string-append "goto " (lambda->label (- (length lambdas) 1)) ";")
-      ,(stitch-lambdas lambdas)
-      "end:"
-      "return 0;"
-      "\n}")
+      "//imports"
+      ,(stitch-imports (dedupe imports))
+      ""
+      "// lambdas"
+      ,(stitch-lambdas module lambdas)
+      ""
+      "// toplevel"
+      ,(string-append "void " module"_toplevel(q_stack *s, q_rets *r, void** next) {") 
+      ,(string-append (lambda->label (- (length lambdas) 1))"(s, r, next);")
+      "}")
     "\n"))
 
 ;;(begin 
@@ -358,8 +401,22 @@
     (if (eof-object? read-value)
       '()
       (cons read-value (read-all port)))))
+
+(define (command-line)
+  (let ((lst ()))
+    (with-input-from-file "/proc/self/cmdline"
+      (lambda ()
+       (do ((c (read-char) (read-char))
+            (s ""))
+        ((eof-object? c)
+         (reverse lst))
+        (if (char=? c #\null)
+         (begin
+          (set! lst (cons s lst))
+          (set! s ""))
+         (set! s (string-append s (string c)))))))))
     
-(display (stitch-program (to-c (evaluate-thunk (read-all *stdin*) '() '()))))
+(display (stitch-program (list-ref (command-line) 2) (to-c (evaluate-thunk (read-all *stdin*) '() '()))))
 
 ;;(display 
 ;;  (stitch-program (to-c (evaluate-thunk '(

@@ -35,7 +35,7 @@ typedef struct {
   uint8_t data[];
 } q_buffer;
 
-typedef void (*q_function)(q_stack s);
+typedef void (*q_function)(q_stack *s, q_rets *r, void **next);
 
 #define Q_NUMBER(n) ((q_value) { .type = Q_TYPE_NUMBER, .data = n } )
 #define Q_LAMBDA(f) ((q_value) { .type = Q_TYPE_LAMBDA, .data = (uint64_t)f } )
