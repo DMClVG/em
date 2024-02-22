@@ -97,7 +97,7 @@
   (string-append "f_" (number->string id)))
 
 (define (to-c ir)
-  (let next ((op ir) (code '()) (lambdas '()) (defines '()) (fetches '()))
+  (let next ((op ir) (code '()) (lambdas '()) (defines '()) (fetches '()) (paramcount 0))
     (if (null? op) 
       (values 
         (cons (cons 
@@ -105,16 +105,17 @@
                 code) lambdas) 
         defines 
         fetches)      
+        
 
       (case (car op)
         ('lambda 
          (let 
-           ((paramcount (list-ref op 1))
+           ((paramcount2 (list-ref op 1))
             (thunk (list-ref op 2))
             (cont (list-ref op 3)))
 
            (call-with-values 
-             (lambda () (next thunk '() lambdas defines fetches))
+             (lambda () (next thunk '() lambdas defines fetches paramcount2))
 
              (lambda (lambdas2 defines2 fetches2)
                (next 
@@ -127,27 +128,39 @@
                    code) 
                  lambdas2 
                  defines2
-                 fetches2)))))
+                 fetches2
+                 paramcount)))))
 
         ('call
          (let 
            ((argcount (list-ref op 1))
             (cont (list-ref op 2)))
 
-           (call-with-values 
-             (lambda () (next cont '() lambdas defines fetches))
-
-             (lambda (lambdas2 defines2 fetches2)
-               (values 
+           (if (null? cont) ;; at tail position?
+             (values
+               (cons 
                  (cons 
+                   (string-append "q_call_tail(&s, " (number->string argcount) ", " (number->string paramcount) ", &next);") 
+                   code) 
+                 lambdas)
+               defines
+               fetches)
+             
+             (call-with-values 
+               (lambda () (next cont '() lambdas defines fetches paramcount))
+
+               (lambda (lambdas2 defines2 fetches2)
+                 (values 
                    (cons 
-                     "q_call(&s, &next);" 
-                     (cons
-                       (string-append "q_push_ret(&r, &&" (lambda->label (- (length lambdas2) 1)) ");")
-                       code))
-                   lambdas2) 
-                 defines2
-                 fetches2)))))
+                     (cons 
+                       "q_call(&s, &next);" 
+                       (if ())
+                       (cons
+                         (string-append "q_push_ret(&r, &&" (lambda->label (- (length lambdas2) 1)) ");")
+                         code))
+                     lambdas2) 
+                   defines2
+                   fetches2))))))
 
         ('define 
          (let 
@@ -159,7 +172,8 @@
              (cons (string-append "Q_FETCH(&s, 0, &" (define->cdefine name) ");") code)
              lambdas 
              (cons name defines)
-             fetches)))
+             fetches
+             paramcount)))
 
         ('number
          (let
@@ -172,7 +186,8 @@
                (cons "Q_PUSH(&s, 1);" code))
              lambdas
              defines
-             fetches)))
+             fetches
+             paramcount)))
 
         ('print
           (let 
@@ -182,7 +197,8 @@
               (cons "q_print(&s);" code)
               lambdas
               defines
-              fetches)))
+              fetches
+              paramcount)))
              
         ('+
           (let 
@@ -192,7 +208,8 @@
               (cons "q_add(&s);" code)
               lambdas
               defines
-              fetches)))
+              fetches
+              paramcount)))
 
         ('fetch
          (let 
@@ -205,7 +222,8 @@
                (cons "Q_PUSH(&s, 1);" code))
              lambdas
              defines
-             (cons name fetches))))
+             (cons name fetches)
+             paramcount)))
 
         ('drop
          (let 
@@ -217,7 +235,8 @@
                code)
              lambdas
              defines
-             fetches)))
+             fetches
+             paramcount)))
 
         ('pick
          (let 
@@ -234,7 +253,8 @@
                    code)))
              lambdas
              defines
-             fetches)))
+             fetches
+             paramcount)))
 
         (else (error "nuh-uh"))))))
        

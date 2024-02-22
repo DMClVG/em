@@ -7,9 +7,8 @@ OBJECTS=a.o
 $(P): $(OBJECTS)
 	$(CC) -o $(P) $(OBJECTS)
 
-%.c: %.scm
+%.c: %.scm qlisp.scm
 	cat $< | ./repl qlisp.scm > $@
-
 
 clean: 
 	rm -f $(OBJECTS)

@@ -138,17 +138,34 @@ static inline void q_call(q_stack *s, void** next)
 {
   q_value f;
   Q_FETCH(s, 0, &f);
-  Q_POP(s, 1);
 
   if (f.type == Q_TYPE_LAMBDA)
   {
     printf("Calling %lx. s=%ld\n", f.data, s->top - s->base);
     *next = (void*)f.data;
+    Q_POP(s, 1);
   }
   else
   {
     fprintf(stderr, "Tried to call value of type %x. Aborting\n", f.type);
     exit(-1);
+  }
+}
+
+
+static inline void q_call_tail(q_stack *s, uint64_t argcount, uint64_t paramcount, void** next)
+{
+  q_call(s, next);
+
+  if (paramcount > 0)
+  {
+    for (int64_t i = 0; i < argcount; i++)
+    {
+      q_value temp;
+      Q_FETCH(s, argcount - i, &temp);
+      Q_STORE(s, argcount + paramcount - i, temp);
+    }
+    Q_POP(s, paramcount);
   }
 }
 
