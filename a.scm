@@ -1,3 +1,5 @@
-(print 1)
+(define (funnee a b c) 
+  (print a)
+  (funnee a b c))
 
-(+  1 2)
+(funnee 1 3 3)

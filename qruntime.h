@@ -116,6 +116,8 @@ static inline void q_print(q_stack *s)
   printf("print %x:%ld\n", x.type, x.data);
   
   Q_POP(s, 1);
+  Q_PUSH(s, 1);
+  Q_STORE(s, 0, Q_NUMBER(0));
 }
 
 static inline void q_trace(q_stack *s, int i)

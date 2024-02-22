@@ -6,8 +6,14 @@
       (lambda (a b c)
         (print (+ a b))))))
 
-(define (syntax-define name expr env cont)
-  (evaluate-expr expr env `(define ,name ,cont)))
+
+
+(define (syntax-define head expr env cont)
+  (cond 
+    ((pair? head) 
+     (syntax-define (car head) (list (append `(lambda ,(cdr head)) expr)) env cont)) ;; lambda
+    ((symbol? head) 
+     (evaluate-expr (car expr) env `(define ,head ,cont))))) ;; normal
 
 (define (syntax-print expr env cont)
   (evaluate-expr expr env `(print ,cont)))
@@ -44,7 +50,7 @@
 (define (evaluate-expr expr env cont)
     (if (pair? expr)
       (case (car expr)
-        ('define (syntax-define (list-ref expr 1) (list-ref expr 2) env cont)) 
+        ('define (syntax-define (list-ref expr 1) (list-tail expr 2) env cont)) 
         ('lambda (syntax-lambda (list-ref expr 1) (list-tail expr 2) cont))
         ('+ (syntax-+ (list-ref expr 1) (list-ref expr 2) env cont))
         ('print (syntax-print (list-ref expr 1) env cont))
