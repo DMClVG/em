@@ -46,7 +46,7 @@ typedef void (*q_function)(q_stack *s, q_rets *r, void **next);
 // #define Q_RESIZE(s, n) (s)->top = (s)->base + n;
 #define Q_POP(s, n) { q_check_stack_underflow(s, n); (s)->top -= n; }
 #define Q_PUSH(s, n) { q_check_stack_overflow(s, n); (s)->top += n; }
-#define Q_BRANCH(s, a, b) { if((s)->top[0].data) { Q_POP(s, 1); goto a; } else { Q_POP(s, 1); goto b; } }
+#define Q_BRANCH(s, a, b, next) { if((s)->top[0].data) { Q_POP(s, 1); *next = a; } else { Q_POP(s, 1); *next = b; } }
 
 #define Q_STACK_SIZE 1024
 

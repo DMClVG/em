@@ -1,13 +1,4 @@
 
-(define
-  source
-  '(
-    (define main 
-      (lambda (a b c)
-        (print (+ a b))))))
-
-
-
 (define (syntax-define head expr env cont)
   (cond 
     ((pair? head) 
@@ -50,12 +41,32 @@
 (define (syntax-import module env cont)
   `(import ,module ,cont))
 
+(define (syntax-if condition iftrue iffalse env cont)
+  (evaluate-expr 
+    condition 
+    env 
+    `(branch ,(evaluate-expr iftrue env cont) ,(evaluate-expr iffalse env cont))))
+
 (define (evaluate-expr expr env cont)
     (if (pair? expr)
       (case (car expr)
         ('define (syntax-define (list-ref expr 1) (list-tail expr 2) env cont)) 
+        ('if (syntax-if (list-ref expr 1) (list-ref expr 2) (list-ref expr 3) env cont))
+
         ('lambda (syntax-lambda (list-ref expr 1) (list-tail expr 2) cont))
+
         ('+ (syntax-+ (list-ref expr 1) (list-ref expr 2) env cont))
+        ;;('+ (syntax-binary '+ (list-ref expr 1) (list-ref expr 2) env cont))
+        ;;('- (syntax-binary '- (list-ref expr 1) (list-ref expr 2) env cont))
+        ;;('* (syntax-binary '* (list-ref expr 1) (list-ref expr 2) env cont))
+        ;;('/ (syntax-binary '/ (list-ref expr 1) (list-ref expr 2) env cont))
+        ;;('mod (syntax-binary 'mod (list-ref expr 1) (list-ref expr 2) env cont))
+        ;;('> (syntax-binary '> (list-ref expr 1) (list-ref expr 2) env cont))
+        ;;('< (syntax-binary '< (list-ref expr 1) (list-ref expr 2) env cont))
+        ;;('>= (syntax-binary '>= (list-ref expr 1) (list-ref expr 2) env cont))
+        ;;('<= (syntax-binary '<= (list-ref expr 1) (list-ref expr 2) env cont))
+        ;;('= (syntax-binary '= (list-ref expr 1) (list-ref expr 2) env cont))
+
         ('print (syntax-print (list-ref expr 1) env cont))
         ('import (syntax-import (list-ref expr 1) env cont))
         (else (evaluate-many (reverse expr) env `(call ,(length (cdr expr)) ,cont)))) 
@@ -94,11 +105,10 @@
     (else (error "nope"))))
 
 
-;;(define (tail? body)
-;;  (equal? (length body) 1))
 
 (define (lambda->label id)
   (string-append "f_" (number->string id)))
+
 
 (define (to-c ir)
   (let next ((op ir) (code '()) (lambdas '()) (defines '()) (fetches '()) (imports '()) (paramcount 0))
@@ -136,6 +146,33 @@
                  fetches2
                  imports2
                  paramcount)))))
+
+
+        ('branch 
+         (let 
+           ((iftrue (list-ref op 1))
+            (iffalse (list-ref op 2)))
+
+           (call-with-values 
+             (lambda () (next iftrue '() lambdas defines fetches imports paramcount))
+
+             (lambda (lambdas2 defines2 fetches2 imports2)
+               (call-with-values 
+                 (lambda () (next iffalse '() lambdas2 defines2 fetches2 imports2 paramcount))
+
+                 (lambda (lambdas3 defines3 fetches3 imports3)
+                   (values
+                     (cons (cons 
+                             (string-append 
+                               "Q_BRANCH(s, &" 
+                               (lambda->label (- (length lambdas2) 1)) ; if true
+                               ", &"
+                               (lambda->label (- (length lambdas3) 1)) ; if false
+                               ", next);") 
+                             code) lambdas3) 
+                     defines3
+                     fetches3
+                     imports3)))))))
 
         ('call
          (let 
@@ -417,18 +454,3 @@
          (set! s (string-append s (string c)))))))))
     
 (display (stitch-program (list-ref (command-line) 2) (to-c (evaluate-thunk (read-all *stdin*) '() '()))))
-
-;;(display 
-;;  (stitch-program (to-c (evaluate-thunk '(
-;;                                          (define sum 
-;;                                             (lambda () 
-;;                                               (lambda (a b c) 
-;;                                                 (print (+ (+ b a) c))))) 
-;;
-;;                                          ((sum) 1 2 3)
-;;                                          ((sum ) 22 33 44)) 
-;;                                        '() '()))))
-  ;(trace (stitch-program 
-     ;   (to-c (syntax-define 'f '((+ 1 2) 3 2) '())))) 
-  ;;(trace  
-   ;;        (syntax-define 'f '((+ 1 2) 3 2) '())))) 
