@@ -22,7 +22,7 @@
     (evaluate-expr 
       (car thunk) 
       env 
-      (if (pair? (cdr thunk)) 
+      (if (pair? (cdr thunk)) ; at tail?
         `(drop ,(evaluate-thunk (cdr thunk) env cont))
         (evaluate-thunk (cdr thunk) env cont)))))
 
@@ -47,6 +47,7 @@
     env 
     `(branch ,(evaluate-expr iftrue env cont) ,(evaluate-expr iffalse env cont))))
 
+;; define expressions
 (define (evaluate-expr expr env cont)
     (if (pair? expr)
       (case (car expr)
@@ -54,8 +55,8 @@
         ('if (syntax-if (list-ref expr 1) (list-ref expr 2) (list-ref expr 3) env cont))
 
         ('lambda (syntax-lambda (list-ref expr 1) (list-tail expr 2) cont))
+        ('begin (evaluate-thunk (list-tail expr 1) env cont))
 
-        ;;('+ (syntax-binary '+ (list-ref expr 1) (list-ref expr 2) env cont))
         ('+ (syntax-binary '+ (list-ref expr 1) (list-ref expr 2) env cont))
         ('- (syntax-binary '- (list-ref expr 1) (list-ref expr 2) env cont))
         ('* (syntax-binary '* (list-ref expr 1) (list-ref expr 2) env cont))
@@ -370,14 +371,13 @@
     "\n}"))
 
 (define (stitch-lambdas module lambdas)
-  (let loop ((lambdas (reverse lambdas)) (id 0))
-     (if (null? lambdas)
-      ""
-      (begin
-        (string-append
-          (stitch-lambda module id (car lambdas))
-          "\n"
-          (loop (cdr lambdas) (+ 1 id)))))))
+  (string-join
+    (let loop ((lambdas (reverse lambdas)) (id 0))
+         (if (null? lambdas)
+          '()
+           (cons (stitch-lambda module id (car lambdas)) (loop (cdr lambdas) (+ 1 id)))))
+    "\n\n"))
+          
 
 (define (stitch-defines defines)
   (string-join
@@ -426,7 +426,7 @@
       "// extern"
       ,(stitch-extern-defines (difference (dedupe fetches) defines))
       ""
-      "//imports"
+      "// imports"
       ,(stitch-imports (dedupe imports))
       ""
       "// lambdas"

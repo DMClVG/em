@@ -116,7 +116,9 @@ static inline void q_pop_ret(q_stack *s, q_rets *r, int paramcount, void **p)
 
 static inline void q_debug_print(q_value x)
 {
+#ifdef Q_DEBUG
   printf("%x:%ld\n", x.type, x.data);
+#endif
 }
 
 static inline void q_dump_stack(q_stack *s)
@@ -160,7 +162,9 @@ static inline void q_call(q_stack *s, void** next)
 
   if (f.type == Q_TYPE_LAMBDA)
   {
+#ifdef Q_DEBUG
     printf("Calling %lx. s=%ld\n", f.data, s->top - s->base);
+#endif
     *next = (void*)f.data;
     Q_POP(s, 1);
 //    q_dump_stack(s);

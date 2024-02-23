@@ -1,6 +1,6 @@
 P=program
 LDFLAGS=
-CFLAGS=-g -Wall -fstack-protector -O0 -fno-strict-aliasing -fno-semantic-interposition 
+CFLAGS=-g -Wall -fstack-protector -O0 -fno-strict-aliasing -fno-semantic-interposition # -DQ_DEBUG
 CC=gcc
 OBJECTS=a.o b.o main.o
 DEPS=qruntime.h

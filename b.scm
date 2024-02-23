@@ -1,4 +1,4 @@
 (define (funnee a) 
-  (print a))
-  
-(define yahallo (lambda (sus) (print 696969)))
+  (print (+ a 33)))
+ 
+
