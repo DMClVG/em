@@ -38,15 +38,15 @@ typedef struct {
 typedef void (*q_function)(q_stack *s, q_rets *r, void **next);
 
 #define Q_NUMBER(n) ((q_value) { .type = Q_TYPE_NUMBER, .data = n } )
-#define Q_LAMBDA(f) ((q_value) { .type = Q_TYPE_LAMBDA, .data = (uint64_t)f } )
-#define Q_BUFFER(p) ((q_value) { .type = Q_TYPE_BUFFER, .data = (uint64_t)p } )
+#define Q_LAMBDA(f) ((q_value) { .type = Q_TYPE_LAMBDA, .data = (uint64_t)(f) } )
+#define Q_BUFFER(p) ((q_value) { .type = Q_TYPE_BUFFER, .data = (uint64_t)(p) } )
 
-#define Q_STORE(s, n, v) { q_check_stack_in_bounds(s, n); (s)->top[-n] = v; }
-#define Q_FETCH(s, n, v) { q_check_stack_in_bounds(s, n); *v = (s)->top[-n]; }
+#define Q_STORE(s, n, v) { q_check_stack_in_bounds(s, n); (s)->top[-(n)] = v; }
+#define Q_FETCH(s, n, v) { q_check_stack_in_bounds(s, n); *(v) = (s)->top[-(n)]; }
 // #define Q_RESIZE(s, n) (s)->top = (s)->base + n;
 #define Q_POP(s, n) { q_check_stack_underflow(s, n); (s)->top -= n; }
 #define Q_PUSH(s, n) { q_check_stack_overflow(s, n); (s)->top += n; }
-#define Q_BRANCH(s, a, b, next) { if((s)->top[0].data) { Q_POP(s, 1); *next = a; } else { Q_POP(s, 1); *next = b; } }
+#define Q_BRANCH(s, a, b, next) { if((s)->top[0].data) { Q_POP(s, 1); *(next) = a; } else { Q_POP(s, 1); *(next) = b; } }
 
 #define Q_STACK_SIZE 1024
 
@@ -99,13 +99,32 @@ static inline void q_push_ret(q_rets *r, void *p)
 }
 
 
-static inline void q_pop_ret(q_rets *r, void **p)
+static inline void q_pop_ret(q_stack *s, q_rets *r, int paramcount, void **p)
 {
   if (r->top - r->base == 0)
     exit(-1);
 
   r->top--;
   *p = *r->top;
+
+  // copy return value to the top of previous stack frame
+  q_value ret_value;
+  Q_FETCH(s, 0, &ret_value);
+  Q_POP(s, paramcount);
+  Q_STORE(s, 0, ret_value);
+}
+
+static inline void q_debug_print(q_value x)
+{
+  printf("%x:%ld\n", x.type, x.data);
+}
+
+static inline void q_dump_stack(q_stack *s)
+{
+  for(q_value *x = s->base; x <= s->top; x++)
+  {
+    q_debug_print(*x);
+  }
 }
 
 static inline void q_print(q_stack *s)
@@ -113,7 +132,7 @@ static inline void q_print(q_stack *s)
   q_value x;
   Q_FETCH(s, 0, &x);
 
-  printf("print %x:%ld\n", x.type, x.data);
+  printf("%ld\n", x.data);
   
   Q_POP(s, 1);
   Q_PUSH(s, 1);
@@ -144,6 +163,7 @@ static inline void q_call(q_stack *s, void** next)
     printf("Calling %lx. s=%ld\n", f.data, s->top - s->base);
     *next = (void*)f.data;
     Q_POP(s, 1);
+//    q_dump_stack(s);
   }
   else
   {
@@ -152,18 +172,17 @@ static inline void q_call(q_stack *s, void** next)
   }
 }
 
-
 static inline void q_call_tail(q_stack *s, uint64_t argcount, uint64_t paramcount, void** next)
 {
+  q_value temp;
   q_call(s, next);
 
   if (paramcount > 0)
   {
     for (int64_t i = 0; i < argcount; i++)
     {
-      q_value temp;
-      Q_FETCH(s, argcount - i, &temp);
-      Q_STORE(s, argcount + paramcount - i, temp);
+      Q_FETCH(s, argcount - i - 1, &temp);
+      Q_STORE(s, argcount + paramcount - i - 1, temp);
     }
     Q_POP(s, paramcount);
   }
@@ -184,7 +203,46 @@ static inline void q_add(q_stack *s)
   Q_POP(s, 2);
   Q_PUSH(s, 1);
 
-  Q_STORE(s, 0, Q_NUMBER(a.data + b.data));
+  Q_STORE(s, 0, Q_NUMBER((uint64_t) (((int64_t) a.data) + ((int64_t) b.data))));
+}
+
+static inline void q_mul(q_stack *s)
+{
+  q_value a, b;
+
+  Q_FETCH(s, 0, &a);
+  Q_FETCH(s, 1, &b);
+
+  Q_POP(s, 2);
+  Q_PUSH(s, 1);
+
+  Q_STORE(s, 0, Q_NUMBER((uint64_t) (((int64_t) a.data) * ((int64_t) b.data))));
+}
+
+static inline void q_sub(q_stack *s)
+{
+  q_value a, b;
+
+  Q_FETCH(s, 0, &a);
+  Q_FETCH(s, 1, &b);
+
+  Q_POP(s, 2);
+  Q_PUSH(s, 1);
+
+  Q_STORE(s, 0, Q_NUMBER((uint64_t) (((int64_t) a.data) - ((int64_t) b.data))));
+}
+
+static inline void q_div(q_stack *s)
+{
+  q_value a, b;
+
+  Q_FETCH(s, 0, &a);
+  Q_FETCH(s, 1, &b);
+
+  Q_POP(s, 2);
+  Q_PUSH(s, 1);
+
+  Q_STORE(s, 0, Q_NUMBER((uint64_t) (((int64_t) a.data) / ((int64_t) b.data))));
 }
 
 static inline void q_is_equal(q_stack *s)

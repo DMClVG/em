@@ -9,9 +9,9 @@
 (define (syntax-print expr env cont)
   (evaluate-expr expr env `(print ,cont)))
 
-(define (syntax-+ a b env cont)
+(define (syntax-binary op a b env cont)
   (evaluate-expr b env
-    (evaluate-expr a (env-offset env) `(+ ,cont))))
+    (evaluate-expr a (env-offset env) `(,op ,cont))))
 
 (define (env-offset env)
   (map (lambda (x) (cons (car x) (+ (cdr x) 1))) env))
@@ -29,7 +29,7 @@
 (define (evaluate-many exprs env cont)
   (if (null? exprs)
     cont
-    (evaluate-expr (car exprs) env (evaluate-many (cdr exprs) env cont))))
+    (evaluate-expr (car exprs) env (evaluate-many (cdr exprs) (env-offset env) cont))))
 
 (define (syntax-lambda params body cont)
   (let ((env (params->env params)))
@@ -55,17 +55,12 @@
 
         ('lambda (syntax-lambda (list-ref expr 1) (list-tail expr 2) cont))
 
-        ('+ (syntax-+ (list-ref expr 1) (list-ref expr 2) env cont))
         ;;('+ (syntax-binary '+ (list-ref expr 1) (list-ref expr 2) env cont))
-        ;;('- (syntax-binary '- (list-ref expr 1) (list-ref expr 2) env cont))
-        ;;('* (syntax-binary '* (list-ref expr 1) (list-ref expr 2) env cont))
-        ;;('/ (syntax-binary '/ (list-ref expr 1) (list-ref expr 2) env cont))
-        ;;('mod (syntax-binary 'mod (list-ref expr 1) (list-ref expr 2) env cont))
-        ;;('> (syntax-binary '> (list-ref expr 1) (list-ref expr 2) env cont))
-        ;;('< (syntax-binary '< (list-ref expr 1) (list-ref expr 2) env cont))
-        ;;('>= (syntax-binary '>= (list-ref expr 1) (list-ref expr 2) env cont))
-        ;;('<= (syntax-binary '<= (list-ref expr 1) (list-ref expr 2) env cont))
-        ;;('= (syntax-binary '= (list-ref expr 1) (list-ref expr 2) env cont))
+        ('+ (syntax-binary '+ (list-ref expr 1) (list-ref expr 2) env cont))
+        ('- (syntax-binary '- (list-ref expr 1) (list-ref expr 2) env cont))
+        ('* (syntax-binary '* (list-ref expr 1) (list-ref expr 2) env cont))
+        ('/ (syntax-binary '/ (list-ref expr 1) (list-ref expr 2) env cont))
+        ('equal? (syntax-binary 'equal? (list-ref expr 1) (list-ref expr 2) env cont))
 
         ('print (syntax-print (list-ref expr 1) env cont))
         ('import (syntax-import (list-ref expr 1) env cont))
@@ -110,13 +105,23 @@
   (string-append "f_" (number->string id)))
 
 
+(define (op-to-c-call op)
+  (case op
+    ('+ "q_add(s);")
+    ('- "q_sub(s);")
+    ('* "q_mul(s);")
+    ('/ "q_div(s);")
+    ('equal? "q_is_equal(s);")))
+
 (define (to-c ir)
   (let next ((op ir) (code '()) (lambdas '()) (defines '()) (fetches '()) (imports '()) (paramcount 0))
     (if (null? op) 
       (values 
-        (cons (cons 
-                "q_pop_ret(r, next);"  
-                code) lambdas) 
+        (cons 
+          (cons 
+            (string-append "q_pop_ret(s, r, "(number->string paramcount)", next);")  
+            code) 
+          lambdas) 
         defines 
         fetches      
         imports)
@@ -180,6 +185,7 @@
             (cont (list-ref op 2)))
 
            (if (null? cont) ;; at tail position?
+              ;;#f
              (values
                (cons 
                  (cons 
@@ -227,6 +233,16 @@
                 defines2
                 fetches2
                 (cons module imports2))))))
+
+        ((+ - * / equal?)
+         (next
+           (list-ref op 1) ;; cont
+           (cons (op-to-c-call (car op)) code)
+           lambdas
+           defines
+           fetches
+           imports
+           paramcount))
 
         ('define 
          (let 
