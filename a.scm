@@ -1,10 +1,5 @@
 (import b)
 
-(define (factorial n)
-  (if (equal? n 0)
-    1
-    (* (factorial (- n 1)) n)))
-
 (define (wrong x y)
   (if 0
     (print x)
@@ -12,7 +7,9 @@
       (funnee x)
       (wrong y x))))
 
-(print (factorial 8))
-(wrong 2 6)
+;;(wrong 2 6)
+
+(print (pair (pair (factorial 8) 0) 2))
+;;(print (* -1 8))
 
 

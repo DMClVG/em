@@ -1,3 +1,5 @@
+(define (function-signature name) 
+  (string-append "void "name"(q_stack *s, q_rets *r, q_pairs *p, void **next)"))
 
 (define (syntax-define head expr env cont)
   (cond 
@@ -65,6 +67,9 @@
 
         ('print (syntax-print (list-ref expr 1) env cont))
         ('import (syntax-import (list-ref expr 1) env cont))
+
+        ('pair (syntax-binary 'pair (list-ref expr 1) (list-ref expr 2) env cont))
+
         (else (evaluate-many (reverse expr) env `(call ,(length (cdr expr)) ,cont)))) 
           
       (immediate expr env cont)))
@@ -112,7 +117,8 @@
     ('- "q_sub(s);")
     ('* "q_mul(s);")
     ('/ "q_div(s);")
-    ('equal? "q_is_equal(s);")))
+    ('equal? "q_is_equal(s);")
+    ('pair "q_make_pair(p, s);")))
 
 (define (to-c ir)
   (let next ((op ir) (code '()) (lambdas '()) (defines '()) (fetches '()) (imports '()) (paramcount 0))
@@ -235,7 +241,7 @@
                 fetches2
                 (cons module imports2))))))
 
-        ((+ - * / equal?)
+        ((+ - * / equal? pair) ;; binary
          (next
            (list-ref op 1) ;; cont
            (cons (op-to-c-call (car op)) code)
@@ -286,18 +292,6 @@
               imports
               paramcount)))
              
-        ('+
-          (let 
-            ((cont (list-ref op 1)))
-            (next
-              cont
-              (cons "q_add(s);" code)
-              lambdas
-              defines
-              fetches
-              imports
-              paramcount)))
-
         ('fetch
          (let 
             ((name (list-ref op 1))
@@ -365,7 +359,7 @@
 
 (define (stitch-lambda module id l)
   (string-append 
-    "static void " (lambda->label id)"(q_stack *s, q_rets *r, void **next) {\n"
+    "static " (function-signature (lambda->label id))" {\n"
     "q_value temp;\n"
     (string-join (reverse l) "\n")
     "\n}"))
@@ -393,7 +387,7 @@
     (let loop ((ls imports))
        (if (null? ls)
         '()
-        (cons (string-append "void "(symbol->string (car ls))"_toplevel(q_stack* s, q_rets *r, void** next);") (loop (cdr ls)))))
+        (cons (string-append (top-level-function-signature (symbol->string (car ls)))";") (loop (cdr ls)))))
     "\n"))
 
 (define (stitch-extern-defines defines)
@@ -414,6 +408,8 @@
 (define (difference a b)
    (filter (lambda (x) (not (member x b))) a))
 
+(define (top-level-function-signature module)
+  (function-signature (string-append module"_toplevel")))
   
 (define (stitch-program module lambdas defines fetches imports)
   (string-join 
@@ -433,8 +429,8 @@
       ,(stitch-lambdas module lambdas)
       ""
       "// toplevel"
-      ,(string-append "void " module"_toplevel(q_stack *s, q_rets *r, void** next) {") 
-      ,(string-append (lambda->label (- (length lambdas) 1))"(s, r, next);")
+      ,(string-append (top-level-function-signature module) " {") 
+      ,(string-append (lambda->label (- (length lambdas) 1))"(s, r, p, next);")
       "}")
     "\n"))
 

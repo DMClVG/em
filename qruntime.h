@@ -15,8 +15,8 @@ typedef struct {
 } q_value;
 
 typedef struct {
-  q_value x;
-  q_value y;
+  q_value head;
+  q_value tail;
 } q_pair;
 
 typedef struct {
@@ -31,13 +31,20 @@ typedef struct {
 } q_rets;
 
 typedef struct {
+  q_pair* base;
+  q_pair* top;
+  uint64_t total;
+} q_pairs;
+
+typedef struct {
   uint64_t size;
   uint8_t data[];
 } q_buffer;
 
-typedef void (*q_function)(q_stack *s, q_rets *r, void **next);
+typedef void (*q_function)(q_stack *s, q_rets *r, q_pairs *p, void **next);
 
 #define Q_NUMBER(n) ((q_value) { .type = Q_TYPE_NUMBER, .data = n } )
+#define Q_PAIR(p) ((q_value) { .type = Q_TYPE_PAIR, .data = (uint64_t) (p) } )
 #define Q_LAMBDA(f) ((q_value) { .type = Q_TYPE_LAMBDA, .data = (uint64_t)(f) } )
 #define Q_BUFFER(p) ((q_value) { .type = Q_TYPE_BUFFER, .data = (uint64_t)(p) } )
 
@@ -49,6 +56,13 @@ typedef void (*q_function)(q_stack *s, q_rets *r, void **next);
 #define Q_BRANCH(s, a, b, next) { if((s)->top[0].data) { Q_POP(s, 1); *(next) = a; } else { Q_POP(s, 1); *(next) = b; } }
 
 #define Q_STACK_SIZE 1024
+#define Q_PAIRS_SIZE 1024
+
+static inline void q_fatal(const char *msg)
+{
+  printf("%s", msg);
+  exit(-22);
+}
 
 static inline void q_check_stack_in_bounds(q_stack *s, uint64_t i)
 {
@@ -90,6 +104,13 @@ static inline void q_init_rets(q_rets *r)
   r->top = r->base;
 }
 
+static inline void q_init_pairs(q_pairs *p)
+{
+  p->base = calloc(Q_PAIRS_SIZE, sizeof(q_pair));
+  p->top = p->base;
+  p->total = 0;
+}
+
 static inline void q_push_ret(q_rets *r, void *p)
 {
   *r->top = p;
@@ -129,13 +150,47 @@ static inline void q_dump_stack(q_stack *s)
   }
 }
 
-static inline void q_print(q_stack *s)
+
+
+static inline void q_print_value(q_value x);
+
+static inline void q_print_pair(q_value x)
+{
+  q_pair pair = *((q_pair*) x.data);
+
+  q_print_value(pair.head);
+  printf(" . ");
+  q_print_value(pair.tail);
+}
+
+static inline void q_print_value(q_value x) {
+  switch (x.type)
+  {
+  case Q_TYPE_NUMBER:
+    {
+      printf("%ld", x.data);
+    } break;
+  case Q_TYPE_LAMBDA:
+    {
+      printf("<lambda %ld>", x.data);
+    } break;
+  case Q_TYPE_PAIR:
+    {
+      printf("(");
+      q_print_pair(x);
+      printf(")");
+    } break;
+  }
+}
+
+static inline void q_print(q_stack* s)
 {
   q_value x;
   Q_FETCH(s, 0, &x);
-
-  printf("%ld\n", x.data);
   
+  q_print_value(x);
+  printf("\n");
+
   Q_POP(s, 1);
   Q_PUSH(s, 1);
   Q_STORE(s, 0, Q_NUMBER(0));
@@ -153,6 +208,34 @@ static inline void q_make_lambda(q_stack *s, void* f)
 {
   Q_PUSH(s, 1);
   Q_STORE(s, 0, Q_LAMBDA(f));
+}
+
+static inline void q_compact_pairs(q_stack *s, q_pairs *p)
+{
+  q_fatal("todo");
+}
+
+static inline void q_make_pair(q_pairs *p, q_stack *s)
+{
+  q_value head, tail;
+  Q_FETCH(s, 0, &head);
+  Q_FETCH(s, 1, &tail);
+
+  if (p->total == Q_PAIRS_SIZE)
+    q_fatal("Out of memory");
+
+  if (p->top - p->base == Q_PAIRS_SIZE)
+    q_compact_pairs(s, p);
+  
+  *p->top = (q_pair) { .head=head, .tail=tail };
+
+  Q_POP(s, 2);
+  Q_PUSH(s, 1);
+
+  Q_STORE(s, 0, Q_PAIR(p->top));
+
+  p->top++;
+  p->total++;
 }
 
 static inline void q_call(q_stack *s, void** next)
