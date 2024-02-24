@@ -68,7 +68,7 @@
         ('print (syntax-print (list-ref expr 1) env cont))
         ('import (syntax-import (list-ref expr 1) env cont))
 
-        ('pair (syntax-binary 'pair (list-ref expr 1) (list-ref expr 2) env cont))
+        ((pair cons) (syntax-binary 'pair (list-ref expr 1) (list-ref expr 2) env cont))
 
         (else (evaluate-many (reverse expr) env `(call ,(length (cdr expr)) ,cont)))) 
           

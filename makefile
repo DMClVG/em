@@ -5,7 +5,7 @@ CC=gcc
 OBJECTS=a.o b.o main.o
 DEPS=qruntime.h
 
-$(P): $(OBJECTS)
+$(P): $(OBJECTS) $(DEPS)
 	$(CC) -o $(P) $(OBJECTS)
 
 %.c: %.scm qlisp.scm $(DEPS)
