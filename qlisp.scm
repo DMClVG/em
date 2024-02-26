@@ -120,7 +120,7 @@
   (cond
     ((number? x) `(number ,x ,cont))
     ((symbol? x) (env-variable-pointer env x cont))
-    (else (error "nope"))))
+    (else (error "bad immediate"))))
 
 (define (number->hex n)
   (list->string
@@ -429,7 +429,7 @@
              symbols
              paramcount)))
 
-        (else (error "nuh-uh"))))))
+        (else (error "bad operation"))))))
        
 (define (delimited-list ls del)
   (if (null? ls) 
