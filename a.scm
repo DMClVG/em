@@ -18,5 +18,5 @@
 (print (cons (cons (factorial 8) 0) 2))
 (print (* -1 8))
 
-(print 'abc)
+(print 'abc_??)
 

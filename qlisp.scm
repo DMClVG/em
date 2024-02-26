@@ -53,6 +53,17 @@
   (unless (symbol? x) (error "todo"))
   `(symbol ,x ,cont))
 
+(define (repeat x n)
+  (let loop ((n n))
+    (if (<= n 0)
+      '()
+      (cons x (loop (- n 1))))))
+
+(define (padleft s char n)
+  (string-append 
+    (list->string (repeat char (- n (length s)))) 
+    s))
+
 ;; define expressions
 (define (evaluate-expr expr env cont)
   (if (pair? expr)
@@ -97,7 +108,7 @@
   (error "todo"))
 
 (define (define->cdefine name)
-  (string-append "d_" (symbol->string name)))
+  (string-append "d_" (symbol->cidentifier name)))
 
 (define (env-variable-pointer env name cont)
   (let ((match (assoc name env)))
@@ -111,13 +122,51 @@
     ((symbol? x) (env-variable-pointer env x cont))
     (else (error "nope"))))
 
+(define (number->hex n)
+  (list->string
+    (reverse 
+      (let loop ((n n))
+        (cons 
+          (list-ref '(#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9 #\A #\B #\C #\D #\E #\F) (modulo n 16))
+          (if (equal? (floor (/ n 16)) 0)
+            '()
+            (loop (floor (/ n 16)))))))))
 
+(define (symbol->cidentifier sym)
+  (string-join
+    (map 
+      (lambda (x)
+        (let ((c (char->integer x)))
+          (cond
+            ((equal? 95 c)
+             "__")
+            ((or
+               (and 
+                 (>= c 65)
+                 (<= c 90))
+               (and
+                 (>= c 97)
+                 (<= c 122))
+               (and
+                 (>= c 48)
+                 (<= c 57)))
+             (list->string (list (integer->char c))))
+
+            (else
+              (let ((hexchar (number->hex c)))
+                (if (> (length hexchar) 4)
+                  (string-append "_U"(padleft hexchar #\0 8))
+                  (string-append "_u"(padleft hexchar #\0 4))))))))
+
+      (string->list (symbol->string sym))) 
+    ""))
+    
 
 (define (lambda->label id)
   (string-append "f_" (number->string id)))
 
 (define (symbol->cdef sym)
-  (string-append "s_" (symbol->string sym)))
+  (string-append "s_" (symbol->cidentifier sym)))
 
 
 (define (op-to-c-call op)
@@ -245,7 +294,7 @@
               (values 
                 (cons 
                   (cons 
-                    (string-append "*next = &"(symbol->string module)"_toplevel;")
+                    (string-append "*next = &"(symbol->cidentifier module)"_toplevel;")
                     (cons
                       (string-append "q_push_ret(q, &" (lambda->label (- (length lambdas2) 1)) ");")
                       code))
@@ -427,7 +476,7 @@
     (let loop ((ls imports))
        (if (null? ls)
         '()
-        (cons (string-append (top-level-function-signature (symbol->string (car ls)))";") (loop (cdr ls)))))
+        (cons (string-append (top-level-function-signature (symbol->cidentifier (car ls)))";") (loop (cdr ls)))))
     "\n"))
 
 (define (stitch-extern-defines defines)
