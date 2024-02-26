@@ -7,9 +7,15 @@
       (funnee x)
       (wrong y x))))
 
-;;(wrong 2 6)
+(define (range x a b)
+  (if (equal? a b)
+    x
+    (range (cons b x) a (- b 1))))
 
-(print (pair (pair (factorial 8) 0) 2))
+
+(print (range 0 2 100))
+
+;;(print (pair (pair (factorial 8) 0) 2))
 ;;(print (* -1 8))
 
 

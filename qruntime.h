@@ -24,10 +24,14 @@ typedef struct {
   q_value* top;
 } q_stack;
 
+typedef struct {
+  void* ret;
+  q_pair* pair_top;
+} q_frame;
 
 typedef struct {
-  void** base;
-  void** top;
+  q_frame* base;
+  q_frame* top;
 } q_rets;
 
 typedef struct {
@@ -100,7 +104,7 @@ static inline void q_init_stack(q_stack *s)
 
 static inline void q_init_rets(q_rets *r)
 {
-  r->base = calloc(Q_STACK_SIZE, sizeof(void*));
+  r->base = calloc(Q_STACK_SIZE, sizeof(q_frame));
   r->top = r->base;
 }
 
@@ -111,24 +115,26 @@ static inline void q_init_pairs(q_pairs *p)
   p->total = 0;
 }
 
-static inline void q_push_ret(q_rets *r, void *p)
+static inline void q_push_ret(q_rets *r, q_pairs *p, void *ret)
 {
-  *r->top = p;
+  *r->top = (q_frame) { .ret = ret, .pair_top = p->top };
   r->top++;
   if (r->top - r->base >= Q_STACK_SIZE)
     exit(-1);
 }
 
 
-static inline void q_pop_ret(q_stack *s, q_rets *r, int paramcount, void **p)
+static inline void q_pop_ret(q_stack *s, q_rets *r, int paramcount, void **next)
 {
   if (r->top - r->base == 0)
     exit(-1);
 
   r->top--;
-  *p = *r->top;
+  q_frame frame = *r->top;
 
-  // copy return value to the top of previous stack frame
+  *next = frame.ret;
+
+  // pop frame copy return value to the top of previous stack frame
   q_value ret_value;
   Q_FETCH(s, 0, &ret_value);
   Q_POP(s, paramcount);
@@ -259,7 +265,7 @@ static inline void q_call(q_stack *s, void** next)
   }
 }
 
-static inline void q_call_tail(q_stack *s, uint64_t argcount, uint64_t paramcount, void** next)
+static inline void q_call_tail(q_stack *s, q_pairs *p, q_rets *r, uint64_t argcount, uint64_t paramcount, void** next)
 {
   q_value temp;
   q_call(s, next);
@@ -273,6 +279,8 @@ static inline void q_call_tail(q_stack *s, uint64_t argcount, uint64_t paramcoun
     }
     Q_POP(s, paramcount);
   }
+  
+  (r->top - 1)->pair_top = p->top; // increase range of pairs of present frame
 }
 
 static inline void q_exit(q_stack *s)
@@ -422,19 +430,10 @@ static inline void q_load(q_stack *s, q_stack *o)
   Q_STORE(s, 0, Q_NUMBER((uint64_t) buffer->data[p_idx.data]));
 }
 
-static inline void q_drop(q_stack *o) 
+static inline void q_drop(q_stack *s, q_pairs *p, q_rets *r) 
 {
-  q_value p_buffer;
-
-  Q_FETCH(o, 0, &p_buffer);
-
-  Q_POP(o, 1);
-
-  if(p_buffer.type == Q_TYPE_BUFFER) { 
-    q_buffer* buffer = (q_buffer*)p_buffer.data;
-    fprintf(stderr, "Buffer %p freed\n", buffer);
-    free(buffer);
-  }
+  Q_POP(s, 1);
+  p->top = (r->top - 1)->pair_top; // pop pairs due to return value being dropped
 }
 
 #endif

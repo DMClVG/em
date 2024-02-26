@@ -196,7 +196,7 @@
              (values
                (cons 
                  (cons 
-                   (string-append "q_call_tail(s, " (number->string argcount) ", " (number->string paramcount) ", next);") 
+                   (string-append "q_call_tail(s, p, r, " (number->string argcount) ", " (number->string paramcount) ", next);") 
                    code) 
                  lambdas)
                defines
@@ -212,7 +212,7 @@
                      (cons 
                        "q_call(s, next);" 
                        (cons
-                         (string-append "q_push_ret(r, &" (lambda->label (- (length lambdas2) 1)) ");")
+                         (string-append "q_push_ret(r, p, &" (lambda->label (- (length lambdas2) 1)) ");")
                          code))
                      lambdas2) 
                    defines2
@@ -234,7 +234,7 @@
                   (cons 
                     (string-append "*next = &"(symbol->string module)"_toplevel;")
                     (cons
-                      (string-append "q_push_ret(r, &" (lambda->label (- (length lambdas2) 1)) ");")
+                      (string-append "q_push_ret(r, p, &" (lambda->label (- (length lambdas2) 1)) ");")
                       code))
                   lambdas2) 
                 defines2
@@ -313,7 +313,7 @@
            (next
              cont
              (cons 
-               "Q_POP(s, 1);"
+               "q_drop(s, p, r);"
                code)
              lambdas
              defines
