@@ -45,19 +45,25 @@ typedef struct {
   uint8_t data[];
 } q_buffer;
 
-typedef void (*q_function)(q_stack *s, q_rets *r, q_pairs *p, void **next);
+typedef struct {
+  q_stack stack;
+  q_rets rets;
+  q_pairs pairs;
+} q_run;
+
+typedef void (*q_function)(q_run* q, void **next);
 
 #define Q_NUMBER(n) ((q_value) { .type = Q_TYPE_NUMBER, .data = n } )
 #define Q_PAIR(p) ((q_value) { .type = Q_TYPE_PAIR, .data = (uint64_t) (p) } )
 #define Q_LAMBDA(f) ((q_value) { .type = Q_TYPE_LAMBDA, .data = (uint64_t)(f) } )
 #define Q_BUFFER(p) ((q_value) { .type = Q_TYPE_BUFFER, .data = (uint64_t)(p) } )
 
-#define Q_STORE(s, n, v) { q_check_stack_in_bounds(s, n); (s)->top[-(n)] = v; }
-#define Q_FETCH(s, n, v) { q_check_stack_in_bounds(s, n); *(v) = (s)->top[-(n)]; }
+#define Q_STORE(q, n, v) { q_stack *s = &q->stack; q_check_stack_in_bounds(s, n); (s)->top[-(n)] = v; }
+#define Q_FETCH(q, n, v) { q_stack *s = &q->stack; q_check_stack_in_bounds(s, n); *(v) = (s)->top[-(n)]; }
 // #define Q_RESIZE(s, n) (s)->top = (s)->base + n;
-#define Q_POP(s, n) { q_check_stack_underflow(s, n); (s)->top -= n; }
-#define Q_PUSH(s, n) { q_check_stack_overflow(s, n); (s)->top += n; }
-#define Q_BRANCH(s, a, b, next) { if((s)->top[0].data) { Q_POP(s, 1); *(next) = a; } else { Q_POP(s, 1); *(next) = b; } }
+#define Q_POP(q, n) { q_stack *s = &q->stack; q_check_stack_underflow(s, n); (s)->top -= n; }
+#define Q_PUSH(q, n) { q_stack *s = &q->stack; q_check_stack_overflow(s, n); (s)->top += n; }
+#define Q_BRANCH(q, a, b, next) { q_stack *s = &q->stack; if((s)->top[0].data) { Q_POP(q, 1); *(next) = a; } else { Q_POP(q, 1); *(next) = b; } }
 
 #define Q_STACK_SIZE 1024
 #define Q_PAIRS_SIZE 1024
@@ -115,8 +121,18 @@ static inline void q_init_pairs(q_pairs *p)
   p->total = 0;
 }
 
-static inline void q_push_ret(q_rets *r, q_pairs *p, void *ret)
+static inline void q_init(q_run *q)
 {
+  q_init_stack(&q->stack);
+  q_init_pairs(&q->pairs);
+  q_init_rets(&q->rets);
+}
+
+static inline void q_push_ret(q_run *q, void *ret)
+{
+  q_pairs *p = &q->pairs;
+  q_rets *r = &q->rets;
+
   *r->top = (q_frame) { .ret = ret, .pair_top = p->top };
   r->top++;
   if (r->top - r->base >= Q_STACK_SIZE)
@@ -124,8 +140,10 @@ static inline void q_push_ret(q_rets *r, q_pairs *p, void *ret)
 }
 
 
-static inline void q_pop_ret(q_stack *s, q_rets *r, int paramcount, void **next)
+static inline void q_pop_ret(q_run *q, int paramcount, void **next)
 {
+  q_rets *r = &q->rets;
+
   if (r->top - r->base == 0)
     exit(-1);
 
@@ -136,9 +154,9 @@ static inline void q_pop_ret(q_stack *s, q_rets *r, int paramcount, void **next)
 
   // pop frame copy return value to the top of previous stack frame
   q_value ret_value;
-  Q_FETCH(s, 0, &ret_value);
-  Q_POP(s, paramcount);
-  Q_STORE(s, 0, ret_value);
+  Q_FETCH(q, 0, &ret_value);
+  Q_POP(q, paramcount);
+  Q_STORE(q, 0, ret_value);
 }
 
 static inline void q_debug_print(q_value x)
@@ -148,15 +166,14 @@ static inline void q_debug_print(q_value x)
 #endif
 }
 
-static inline void q_dump_stack(q_stack *s)
+static inline void q_dump_stack(q_run *q)
 {
+  q_stack *s = &q->stack;
   for(q_value *x = s->base; x <= s->top; x++)
   {
     q_debug_print(*x);
   }
 }
-
-
 
 static inline void q_print_value(q_value x);
 
@@ -189,65 +206,62 @@ static inline void q_print_value(q_value x) {
   }
 }
 
-static inline void q_print(q_stack* s)
+static inline void q_print(q_run *q)
 {
+
   q_value x;
-  Q_FETCH(s, 0, &x);
+  Q_FETCH(q, 0, &x);
   
   q_print_value(x);
   printf("\n");
 
-  Q_POP(s, 1);
-  Q_PUSH(s, 1);
-  Q_STORE(s, 0, Q_NUMBER(0));
+  Q_POP(q, 1);
+  Q_PUSH(q, 1);
+  Q_STORE(q, 0, Q_NUMBER(0));
 }
 
-static inline void q_trace(q_stack *s, int i)
+static inline void q_make_lambda(q_run *q, void* f)
 {
-  q_value x;
-  Q_FETCH(s, i, &x);
 
-  printf("print %x:%ld. s=%ld\n", x.type, x.data, (s->top - s->base));
+  Q_PUSH(q, 1);
+  Q_STORE(q, 0, Q_LAMBDA(f));
 }
 
-static inline void q_make_lambda(q_stack *s, void* f)
-{
-  Q_PUSH(s, 1);
-  Q_STORE(s, 0, Q_LAMBDA(f));
-}
-
-static inline void q_compact_pairs(q_stack *s, q_pairs *p)
+static inline void q_compact_pairs(q_run *q)
 {
   q_fatal("todo");
 }
 
-static inline void q_make_pair(q_pairs *p, q_stack *s)
+static inline void q_make_pair(q_run *q)
 {
+  q_pairs *p = &q->pairs;
+
   q_value head, tail;
-  Q_FETCH(s, 0, &head);
-  Q_FETCH(s, 1, &tail);
+  Q_FETCH(q, 0, &head);
+  Q_FETCH(q, 1, &tail);
 
   if (p->total == Q_PAIRS_SIZE)
     q_fatal("Out of memory");
 
   if (p->top - p->base == Q_PAIRS_SIZE)
-    q_compact_pairs(s, p);
+    q_compact_pairs(q);
   
   *p->top = (q_pair) { .head=head, .tail=tail };
 
-  Q_POP(s, 2);
-  Q_PUSH(s, 1);
+  Q_POP(q, 2);
+  Q_PUSH(q, 1);
 
-  Q_STORE(s, 0, Q_PAIR(p->top));
+  Q_STORE(q, 0, Q_PAIR(p->top));
 
   p->top++;
   p->total++;
 }
 
-static inline void q_call(q_stack *s, void** next)
+static inline void q_call(q_run *q, void** next)
 {
+
   q_value f;
-  Q_FETCH(s, 0, &f);
+  Q_FETCH(q, 0, &f);
 
   if (f.type == Q_TYPE_LAMBDA)
   {
@@ -255,8 +269,7 @@ static inline void q_call(q_stack *s, void** next)
     printf("Calling %lx. s=%ld\n", f.data, s->top - s->base);
 #endif
     *next = (void*)f.data;
-    Q_POP(s, 1);
-//    q_dump_stack(s);
+    Q_POP(q, 1);
   }
   else
   {
@@ -265,174 +278,116 @@ static inline void q_call(q_stack *s, void** next)
   }
 }
 
-static inline void q_call_tail(q_stack *s, q_pairs *p, q_rets *r, uint64_t argcount, uint64_t paramcount, void** next)
+static inline void q_call_tail(q_run *q, uint64_t argcount, uint64_t paramcount, void** next)
 {
+  q_pairs *p = &q->pairs;
+  q_rets *r = &q->rets;
+
   q_value temp;
-  q_call(s, next);
+  q_call(q, next);
 
   if (paramcount > 0)
   {
     for (int64_t i = 0; i < argcount; i++)
     {
-      Q_FETCH(s, argcount - i - 1, &temp);
-      Q_STORE(s, argcount + paramcount - i - 1, temp);
+      Q_FETCH(q, argcount - i - 1, &temp);
+      Q_STORE(q, argcount + paramcount - i - 1, temp);
     }
-    Q_POP(s, paramcount);
+    Q_POP(q, paramcount);
   }
   
   (r->top - 1)->pair_top = p->top; // increase range of pairs of present frame
 }
 
-static inline void q_exit(q_stack *s)
+static inline void q_exit(q_run *q)
 {
   exit(0);
 }
 
-static inline void q_add(q_stack *s)
+static inline void q_add(q_run *q)
 {
   q_value a, b;
 
-  Q_FETCH(s, 0, &a);
-  Q_FETCH(s, 1, &b);
+  Q_FETCH(q, 0, &a);
+  Q_FETCH(q, 1, &b);
 
-  Q_POP(s, 2);
-  Q_PUSH(s, 1);
+  Q_POP(q, 2);
+  Q_PUSH(q, 1);
 
-  Q_STORE(s, 0, Q_NUMBER((uint64_t) (((int64_t) a.data) + ((int64_t) b.data))));
+  Q_STORE(q, 0, Q_NUMBER((uint64_t) (((int64_t) a.data) + ((int64_t) b.data))));
 }
 
-static inline void q_mul(q_stack *s)
+static inline void q_mul(q_run *q)
 {
   q_value a, b;
 
-  Q_FETCH(s, 0, &a);
-  Q_FETCH(s, 1, &b);
+  Q_FETCH(q, 0, &a);
+  Q_FETCH(q, 1, &b);
 
-  Q_POP(s, 2);
-  Q_PUSH(s, 1);
+  Q_POP(q, 2);
+  Q_PUSH(q, 1);
 
-  Q_STORE(s, 0, Q_NUMBER((uint64_t) (((int64_t) a.data) * ((int64_t) b.data))));
+  Q_STORE(q, 0, Q_NUMBER((uint64_t) (((int64_t) a.data) * ((int64_t) b.data))));
 }
 
-static inline void q_sub(q_stack *s)
+static inline void q_sub(q_run *q)
 {
   q_value a, b;
 
-  Q_FETCH(s, 0, &a);
-  Q_FETCH(s, 1, &b);
+  Q_FETCH(q, 0, &a);
+  Q_FETCH(q, 1, &b);
 
-  Q_POP(s, 2);
-  Q_PUSH(s, 1);
+  Q_POP(q, 2);
+  Q_PUSH(q, 1);
 
-  Q_STORE(s, 0, Q_NUMBER((uint64_t) (((int64_t) a.data) - ((int64_t) b.data))));
+  Q_STORE(q, 0, Q_NUMBER((uint64_t) (((int64_t) a.data) - ((int64_t) b.data))));
 }
 
-static inline void q_div(q_stack *s)
+static inline void q_div(q_run *q)
 {
   q_value a, b;
 
-  Q_FETCH(s, 0, &a);
-  Q_FETCH(s, 1, &b);
+  Q_FETCH(q, 0, &a);
+  Q_FETCH(q, 1, &b);
 
-  Q_POP(s, 2);
-  Q_PUSH(s, 1);
+  Q_POP(q, 2);
+  Q_PUSH(q, 1);
 
-  Q_STORE(s, 0, Q_NUMBER((uint64_t) (((int64_t) a.data) / ((int64_t) b.data))));
+  Q_STORE(q, 0, Q_NUMBER((uint64_t) (((int64_t) a.data) / ((int64_t) b.data))));
 }
 
-static inline void q_is_equal(q_stack *s)
+static inline void q_is_equal(q_run *q)
 {
   q_value a, b;
 
-  Q_FETCH(s, 0, &a);
-  Q_FETCH(s, 1, &b);
+  Q_FETCH(q, 0, &a);
+  Q_FETCH(q, 1, &b);
 
-  Q_POP(s, 2);
-  Q_PUSH(s, 1);
+  Q_POP(q, 2);
+  Q_PUSH(q, 1);
 
-  Q_STORE(s, 0, Q_NUMBER(a.data == b.data));
+  Q_STORE(q, 0, Q_NUMBER(a.data == b.data));
 }
 
-static inline void q_is_greater(q_stack *s)
+static inline void q_is_greater(q_run *q)
 {
   q_value a, b;
 
-  Q_FETCH(s, 0, &a);
-  Q_FETCH(s, 1, &b);
+  Q_FETCH(q, 0, &a);
+  Q_FETCH(q, 1, &b);
 
-  Q_POP(s, 2);
-  Q_PUSH(s, 1);
+  Q_POP(q, 2);
+  Q_PUSH(q, 1);
 
-  Q_STORE(s, 0, Q_NUMBER(a.data > b.data));
+  Q_STORE(q, 0, Q_NUMBER(a.data > b.data));
 }
 
-static inline void q_alloc(q_stack *s, q_stack *o)
+static inline void q_drop(q_run *q) 
 {
-  q_value p_size;
+  q_pairs *p = &q->pairs;
+  q_rets *r = &q->rets;
 
-  Q_FETCH(s, 0, &p_size);
-  Q_POP(s, 1);
-
-  uint64_t size = p_size.data;
-
-  q_buffer* buffer = calloc(size, sizeof(q_buffer) + sizeof(uint8_t) * size);
-  buffer->size = size;
-
-  Q_PUSH(o, 1);
-  Q_STORE(o, 0, Q_BUFFER(buffer));
-}
-
-static inline void q_store(q_stack *s, q_stack *o)
-{
-  q_value p_buffer, p_idx, p_value;
-
-  Q_FETCH(o, 0, &p_buffer);
-  Q_FETCH(s, 0, &p_idx);
-  Q_FETCH(s, 1, &p_value);
-
-  Q_POP(s, 2);
-
-  if(p_buffer.type != Q_TYPE_BUFFER) { 
-    fprintf(stderr, "Argument is not a buffer\n");
-    exit(-1);
-  }
-
-  q_buffer* buffer = (q_buffer*)p_buffer.data;
-  if(p_idx.data >= buffer->size || p_idx.data < 0) {
-    fprintf(stderr, "Out of bounds\n"); 
-    exit(-1);
-  }
-
-  buffer->data[p_idx.data] = (uint8_t) p_value.data;
-}
-
-static inline void q_load(q_stack *s, q_stack *o)
-{
-  q_value p_buffer, p_idx;
-
-  Q_FETCH(o, 0, &p_buffer);
-  Q_FETCH(s, 0, &p_idx);
-
-  Q_POP(s, 1);
-  Q_PUSH(s, 1);
-
-  if(p_buffer.type != Q_TYPE_BUFFER) { 
-    fprintf(stderr, "Argument is not a buffer\n");
-    exit(-1);
-  }
-
-  q_buffer* buffer = (q_buffer*)p_buffer.data;
-  if(p_idx.data >= buffer->size || p_idx.data < 0) {
-    fprintf(stderr, "Out of bounds\n"); 
-    exit(-1);
-  }
-
-  Q_STORE(s, 0, Q_NUMBER((uint64_t) buffer->data[p_idx.data]));
-}
-
-static inline void q_drop(q_stack *s, q_pairs *p, q_rets *r) 
-{
-  Q_POP(s, 1);
+  Q_POP(q, 1);
   p->top = (r->top - 1)->pair_top; // pop pairs due to return value being dropped
 }
 

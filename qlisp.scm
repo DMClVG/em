@@ -1,5 +1,5 @@
 (define (function-signature name) 
-  (string-append "void "name"(q_stack *s, q_rets *r, q_pairs *p, void **next)"))
+  (string-append "void "name"(q_run *q, void **next)"))
 
 (define (syntax-define head expr env cont)
   (cond 
@@ -113,12 +113,12 @@
 
 (define (op-to-c-call op)
   (case op
-    ('+ "q_add(s);")
-    ('- "q_sub(s);")
-    ('* "q_mul(s);")
-    ('/ "q_div(s);")
-    ('equal? "q_is_equal(s);")
-    ('pair "q_make_pair(p, s);")))
+    ('+ "q_add(q);")
+    ('- "q_sub(q);")
+    ('* "q_mul(q);")
+    ('/ "q_div(q);")
+    ('equal? "q_is_equal(q);")
+    ('pair "q_make_pair(q);")))
 
 (define (to-c ir)
   (let next ((op ir) (code '()) (lambdas '()) (defines '()) (fetches '()) (imports '()) (paramcount 0))
@@ -126,7 +126,7 @@
       (values 
         (cons 
           (cons 
-            (string-append "q_pop_ret(s, r, "(number->string paramcount)", next);")  
+            (string-append "q_pop_ret(q, "(number->string paramcount)", next);")  
             code) 
           lambdas) 
         defines 
@@ -149,7 +149,7 @@
                  cont
                  (cons 
                    (string-append 
-                     "q_make_lambda(s, &" 
+                     "q_make_lambda(q, &" 
                      (lambda->label (- (length lambdas2) 1))
                      ");") 
                    code) 
@@ -176,7 +176,7 @@
                    (values
                      (cons (cons 
                              (string-append 
-                               "Q_BRANCH(s, &" 
+                               "Q_BRANCH(q, &" 
                                (lambda->label (- (length lambdas2) 1)) ; if true
                                ", &"
                                (lambda->label (- (length lambdas3) 1)) ; if false
@@ -196,7 +196,7 @@
              (values
                (cons 
                  (cons 
-                   (string-append "q_call_tail(s, p, r, " (number->string argcount) ", " (number->string paramcount) ", next);") 
+                   (string-append "q_call_tail(q, " (number->string argcount) ", " (number->string paramcount) ", next);") 
                    code) 
                  lambdas)
                defines
@@ -210,9 +210,9 @@
                  (values 
                    (cons 
                      (cons 
-                       "q_call(s, next);" 
+                       "q_call(q, next);" 
                        (cons
-                         (string-append "q_push_ret(r, p, &" (lambda->label (- (length lambdas2) 1)) ");")
+                         (string-append "q_push_ret(q, &" (lambda->label (- (length lambdas2) 1)) ");")
                          code))
                      lambdas2) 
                    defines2
@@ -234,7 +234,7 @@
                   (cons 
                     (string-append "*next = &"(symbol->string module)"_toplevel;")
                     (cons
-                      (string-append "q_push_ret(r, p, &" (lambda->label (- (length lambdas2) 1)) ");")
+                      (string-append "q_push_ret(q, &" (lambda->label (- (length lambdas2) 1)) ");")
                       code))
                   lambdas2) 
                 defines2
@@ -258,7 +258,7 @@
 
            (next 
              cont 
-             (cons (string-append "Q_FETCH(s, 0, &" (define->cdefine name) ");") code)
+             (cons (string-append "Q_FETCH(q, 0, &" (define->cdefine name) ");") code)
              lambdas 
              (cons name defines)
              fetches
@@ -272,8 +272,8 @@
            (next
              cont
              (cons 
-               (string-append "Q_STORE(s, 0, Q_NUMBER(" (number->string (list-ref op 1)) "));") 
-               (cons "Q_PUSH(s, 1);" code))
+               (string-append "Q_STORE(q, 0, Q_NUMBER(" (number->string (list-ref op 1)) "));") 
+               (cons "Q_PUSH(q, 1);" code))
              lambdas
              defines
              fetches
@@ -285,7 +285,7 @@
             ((cont (list-ref op 1)))
             (next
               cont
-              (cons "q_print(s);" code)
+              (cons "q_print(q);" code)
               lambdas
               defines
               fetches
@@ -299,8 +299,8 @@
            (next
              cont
              (cons 
-               (string-append "Q_STORE(s, 0, " (define->cdefine name) ");")
-               (cons "Q_PUSH(s, 1);" code))
+               (string-append "Q_STORE(q, 0, " (define->cdefine name) ");")
+               (cons "Q_PUSH(q, 1);" code))
              lambdas
              defines
              (cons name fetches)
@@ -313,7 +313,7 @@
            (next
              cont
              (cons 
-               "q_drop(s, p, r);"
+               "q_drop(q);"
                code)
              lambdas
              defines
@@ -328,11 +328,11 @@
            (next
              cont
              (cons 
-               "Q_STORE(s, 0, temp);"
+               "Q_STORE(q, 0, temp);"
                (cons
-                 "Q_PUSH(s, 1);" 
+                 "Q_PUSH(q, 1);" 
                  (cons 
-                   (string-append "Q_FETCH(s, " (number->string n) ", &temp);") 
+                   (string-append "Q_FETCH(q, " (number->string n) ", &temp);") 
                    code)))
              lambdas
              defines
@@ -430,7 +430,7 @@
       ""
       "// toplevel"
       ,(string-append (top-level-function-signature module) " {") 
-      ,(string-append (lambda->label (- (length lambdas) 1))"(s, r, p, next);")
+      ,(string-append (lambda->label (- (length lambdas) 1))"(q, next);")
       "}")
     "\n"))
 
