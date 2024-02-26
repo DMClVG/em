@@ -49,9 +49,15 @@
     env 
     `(branch ,(evaluate-expr iftrue env cont) ,(evaluate-expr iffalse env cont))))
 
+(define (syntax-quote x cont)
+  (unless (symbol? x) (error "todo"))
+  `(symbol ,x ,cont))
+
 ;; define expressions
 (define (evaluate-expr expr env cont)
-    (if (pair? expr)
+  (if (pair? expr)
+    (if (or (equal? (car expr) #_quote) (equal? (car expr) 'quote))
+      (syntax-quote (list-ref expr 1) cont) 
       (case (car expr)
         ('define (syntax-define (list-ref expr 1) (list-tail expr 2) env cont)) 
         ('if (syntax-if (list-ref expr 1) (list-ref expr 2) (list-ref expr 3) env cont))
@@ -70,9 +76,9 @@
 
         ((pair cons) (syntax-binary 'pair (list-ref expr 1) (list-ref expr 2) env cont))
 
-        (else (evaluate-many (reverse expr) env `(call ,(length (cdr expr)) ,cont)))) 
+        (else (evaluate-many (reverse expr) env `(call ,(length (cdr expr)) ,cont))))) 
           
-      (immediate expr env cont)))
+    (immediate expr env cont)))
 
 (define (params->env params)
   (let next-param ((params params) (res '()))
@@ -110,6 +116,9 @@
 (define (lambda->label id)
   (string-append "f_" (number->string id)))
 
+(define (symbol->cdef sym)
+  (string-append "s_" (symbol->string sym)))
+
 
 (define (op-to-c-call op)
   (case op
@@ -121,7 +130,7 @@
     ('pair "q_make_pair(q);")))
 
 (define (to-c ir)
-  (let next ((op ir) (code '()) (lambdas '()) (defines '()) (fetches '()) (imports '()) (paramcount 0))
+  (let next ((op ir) (code '()) (lambdas '()) (defines '()) (fetches '()) (imports '()) (symbols '()) (paramcount 0))
     (if (null? op) 
       (values 
         (cons 
@@ -131,7 +140,8 @@
           lambdas) 
         defines 
         fetches      
-        imports)
+        imports
+        symbols)
         
 
       (case (car op)
@@ -142,9 +152,9 @@
             (cont (list-ref op 3)))
 
            (call-with-values 
-             (lambda () (next thunk '() lambdas defines fetches imports paramcount2))
+             (lambda () (next thunk '() lambdas defines fetches imports symbols paramcount2))
 
-             (lambda (lambdas2 defines2 fetches2 imports2)
+             (lambda (lambdas2 defines2 fetches2 imports2 symbols2)
                (next 
                  cont
                  (cons 
@@ -157,6 +167,7 @@
                  defines2
                  fetches2
                  imports2
+                 symbols2
                  paramcount)))))
 
 
@@ -166,13 +177,13 @@
             (iffalse (list-ref op 2)))
 
            (call-with-values 
-             (lambda () (next iftrue '() lambdas defines fetches imports paramcount))
+             (lambda () (next iftrue '() lambdas defines fetches imports symbols paramcount))
 
-             (lambda (lambdas2 defines2 fetches2 imports2)
+             (lambda (lambdas2 defines2 fetches2 imports2 symbols2)
                (call-with-values 
-                 (lambda () (next iffalse '() lambdas2 defines2 fetches2 imports2 paramcount))
+                 (lambda () (next iffalse '() lambdas2 defines2 fetches2 imports2 symbols2 paramcount))
 
-                 (lambda (lambdas3 defines3 fetches3 imports3)
+                 (lambda (lambdas3 defines3 fetches3 imports3 symbols3)
                    (values
                      (cons (cons 
                              (string-append 
@@ -184,7 +195,8 @@
                              code) lambdas3) 
                      defines3
                      fetches3
-                     imports3)))))))
+                     imports3
+                     symbols3)))))))
 
         ('call
          (let 
@@ -201,12 +213,13 @@
                  lambdas)
                defines
                fetches
-               imports)
+               imports
+               symbols)
              
              (call-with-values 
-               (lambda () (next cont '() lambdas defines fetches imports paramcount))
+               (lambda () (next cont '() lambdas defines fetches imports symbols paramcount))
 
-               (lambda (lambdas2 defines2 fetches2 imports2)
+               (lambda (lambdas2 defines2 fetches2 imports2 symbols2)
                  (values 
                    (cons 
                      (cons 
@@ -217,8 +230,8 @@
                      lambdas2) 
                    defines2
                    fetches2
-                   imports2))))))
-
+                   imports2
+                   symbols2))))))
 
         ('import
          (let 
@@ -226,9 +239,9 @@
             (cont (list-ref op 2)))
 
            (call-with-values 
-            (lambda () (next cont '() lambdas defines fetches imports paramcount))
+            (lambda () (next cont '() lambdas defines fetches imports symbols paramcount))
 
-            (lambda (lambdas2 defines2 fetches2 imports2)
+            (lambda (lambdas2 defines2 fetches2 imports2 symbols2)
               (values 
                 (cons 
                   (cons 
@@ -239,7 +252,8 @@
                   lambdas2) 
                 defines2
                 fetches2
-                (cons module imports2))))))
+                (cons module imports2)
+                symbols2)))))
 
         ((+ - * / equal? pair) ;; binary
          (next
@@ -249,6 +263,7 @@
            defines
            fetches
            imports
+           symbols
            paramcount))
 
         ('define 
@@ -263,6 +278,7 @@
              (cons name defines)
              fetches
              imports
+             symbols
              paramcount)))
 
         ('number
@@ -278,6 +294,7 @@
              defines
              fetches
              imports
+             symbols
              paramcount)))
 
         ('print
@@ -290,6 +307,7 @@
               defines
               fetches
               imports
+              symbols
               paramcount)))
              
         ('fetch
@@ -305,6 +323,7 @@
              defines
              (cons name fetches)
              imports
+             symbols
              paramcount)))
 
         ('drop
@@ -319,7 +338,27 @@
              defines
              fetches
              imports
+             symbols
              paramcount)))
+
+        ('symbol
+          (let 
+            ((sym (list-ref op 1))
+             (cont (list-ref op 2)))
+            (next
+              cont
+              (cons 
+                (string-append "Q_STORE(q, 0, Q_SYMBOL("(symbol->cdef sym)"));") 
+                (cons 
+                  "Q_PUSH(q, 1);" 
+                  code))
+              lambdas
+              defines
+              fetches
+              imports
+              (cons sym symbols)
+              paramcount)))
+              
 
         ('pick
          (let 
@@ -338,6 +377,7 @@
              defines
              fetches
              imports
+             symbols
              paramcount)))
 
         (else (error "nuh-uh"))))))
@@ -411,7 +451,15 @@
 (define (top-level-function-signature module)
   (function-signature (string-append module"_toplevel")))
   
-(define (stitch-program module lambdas defines fetches imports)
+(define (stitch-symbols symbols)
+  (string-join
+    (map 
+      (lambda (sym)
+        (string-append "extern const char *"(symbol->cdef sym)";"))
+      symbols)
+    "\n"))
+
+(define (stitch-program module lambdas defines fetches imports symbols)
   (string-join 
     `(
       "#include \"qruntime.h\""
@@ -424,6 +472,9 @@
       ""
       "// imports"
       ,(stitch-imports (dedupe imports))
+      ""
+      "// symbols"
+      ,(stitch-symbols (dedupe symbols))
       ""
       "// lambdas"
       ,(stitch-lambdas module lambdas)
@@ -464,5 +515,24 @@
           (set! lst (cons s lst))
           (set! s ""))
          (set! s (string-append s (string c)))))))))
-    
-(display (stitch-program (list-ref (command-line) 2) (to-c (evaluate-thunk (read-all *stdin*) '() '()))))
+
+(define (stitch-symbol-constants symbols)
+  (string-join
+    (map 
+      (lambda (sym)
+        (string-append "const char *"(symbol->cdef sym)" = \""(symbol->string sym)"\";"))
+      symbols)
+    "\n"))
+
+(define (cli cmd module)
+  (cond
+    ((equal? cmd "--extract-symbols")
+     (call-with-values 
+      (lambda () (to-c (evaluate-thunk (read-all *stdin*) '() '())))
+      (lambda (lambdas defines fetches imports symbols)
+        (display (stitch-symbol-constants (dedupe symbols))))))
+
+    ((equal? cmd "--build")
+     (display (stitch-program module (to-c (evaluate-thunk (read-all *stdin*) '() '())))))))
+
+(apply cli (list-tail (command-line) 2))

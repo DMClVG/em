@@ -8,6 +8,7 @@
 #define Q_TYPE_PAIR 2
 #define Q_TYPE_LAMBDA 3
 #define Q_TYPE_BUFFER 4
+#define Q_TYPE_SYMBOL 5
 
 typedef struct {
   uint8_t type;
@@ -57,6 +58,8 @@ typedef void (*q_function)(q_run* q, void **next);
 #define Q_PAIR(p) ((q_value) { .type = Q_TYPE_PAIR, .data = (uint64_t) (p) } )
 #define Q_LAMBDA(f) ((q_value) { .type = Q_TYPE_LAMBDA, .data = (uint64_t)(f) } )
 #define Q_BUFFER(p) ((q_value) { .type = Q_TYPE_BUFFER, .data = (uint64_t)(p) } )
+#define Q_SYMBOL(s) ((q_value) { .type = Q_TYPE_SYMBOL, .data = (uint64_t)(s) } )
+#define Q_NIL Q_SYMBOL(NULL)
 
 #define Q_STORE(q, n, v) { q_stack *s = &q->stack; q_check_stack_in_bounds(s, n); (s)->top[-(n)] = v; }
 #define Q_FETCH(q, n, v) { q_stack *s = &q->stack; q_check_stack_in_bounds(s, n); *(v) = (s)->top[-(n)]; }
@@ -196,6 +199,10 @@ static inline void q_print_value(q_value x) {
   case Q_TYPE_LAMBDA:
     {
       printf("<lambda %ld>", x.data);
+    } break;
+  case Q_TYPE_SYMBOL:
+    {
+      printf("%s", (const char*) x.data);
     } break;
   case Q_TYPE_PAIR:
     {

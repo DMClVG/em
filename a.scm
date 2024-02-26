@@ -15,7 +15,8 @@
 
 (print (range 0 2 100))
 
-;;(print (pair (pair (factorial 8) 0) 2))
-;;(print (* -1 8))
+(print (cons (cons (factorial 8) 0) 2))
+(print (* -1 8))
 
+(print 'abc)
 
