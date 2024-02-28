@@ -103,6 +103,11 @@
         ('- (syntax-binary '- (list-ref expr 1) (list-ref expr 2) env cont))
         ('* (syntax-binary '* (list-ref expr 1) (list-ref expr 2) env cont))
         ('/ (syntax-binary '/ (list-ref expr 1) (list-ref expr 2) env cont))
+        ('>= (syntax-binary '>= (list-ref expr 1) (list-ref expr 2) env cont))
+        ('<= (syntax-binary '<= (list-ref expr 1) (list-ref expr 2) env cont))
+        ('> (syntax-binary '> (list-ref expr 1) (list-ref expr 2) env cont))
+        ('< (syntax-binary '< (list-ref expr 1) (list-ref expr 2) env cont))
+
         ('equal? (syntax-binary 'equal? (list-ref expr 1) (list-ref expr 2) env cont))
         ('and (syntax-binary 'and (list-ref expr 1) (list-ref expr 2) env cont))
         ('or (syntax-binary 'or (list-ref expr 1) (list-ref expr 2) env cont))
@@ -228,7 +233,11 @@
     ('procedure? "q_is_procedure(q);")
     ('pair? "q_is_pair(q);")
     ('number? "q_is_number(q);")
-    ('symbol? "q_is_symbol(q);")))
+    ('symbol? "q_is_symbol(q);")
+    ('> "q_is_greater(q);")
+    ('< "q_is_lesser(q);")
+    ('<= "q_is_lesser_or_eq(q);")
+    ('>= "q_is_greater_or_eq(q);")))
 
 (define (quote-to-c x symbols) ;; TODO: remove this
   (cond
@@ -382,7 +391,7 @@
                 symbols2
                 quotes2)))))
 
-        ((+ - * / equal? pair car cdr print and or not boolean? null? pair? procedure? number? symbol?) ;; ops
+        ((+ - * / equal? pair car cdr print and or not boolean? null? pair? procedure? number? symbol? >= <= > <) ;; ops
          (next
            (list-ref op 1) ;; cont
            (cons (op-to-c-call (car op)) code)

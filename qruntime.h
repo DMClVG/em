@@ -452,58 +452,57 @@ static inline void q_not(q_run *q)
   Q_STORE(q, 0, Q_BOOL(!x.data));
 }
 
-//static inline void q_is_greater(q_run *q)
-//{
-//  q_value a, b;
-//
-//  Q_FETCH(q, 0, &a);
-//  Q_FETCH(q, 1, &b);
-//
-//  Q_POP(q, 2);
-//  Q_PUSH(q, 1);
-//
-//  Q_STORE(q, 0, Q_BOOL(a.data > b.data));
-//}
-//
-//static inline void q_is_lesser(q_run *q)
-//{
-//  q_value a, b;
-//
-//  Q_FETCH(q, 0, &a);
-//  Q_FETCH(q, 1, &b);
-//
-//  Q_POP(q, 2);
-//  Q_PUSH(q, 1);
-//
-//  Q_STORE(q, 0, Q_BOOL(a.data < b.data));
-//}
-//
-//static inline void q_is_lesser_or_eq(q_run *q)
-//{
-//  q_value a, b;
-//
-//  Q_FETCH(q, 0, &a);
-//  Q_FETCH(q, 1, &b);
-//
-//  Q_POP(q, 2);
-//  Q_PUSH(q, 1);
-//
-//  Q_STORE(q, 0, Q_BOOL(a.data <= b.data));
-//}
-//
-//
-//static inline void q_is_greater_or_eq(q_run *q)
-//{
-//  q_value a, b;
-//
-//  Q_FETCH(q, 0, &a);
-//  Q_FETCH(q, 1, &b);
-//
-//  Q_POP(q, 2);
-//  Q_PUSH(q, 1);
-//
-//  Q_STORE(q, 0, Q_BOOL(a.data >= b.data));
-//}
+static inline void q_is_greater(q_run *q)
+{
+  q_value a, b;
+
+  Q_FETCH(q, 0, &a);
+  Q_FETCH(q, 1, &b);
+
+  Q_POP(q, 2);
+  Q_PUSH(q, 1);
+
+  Q_STORE(q, 0, Q_BOOL((int64_t)a.data > (int64_t)b.data));
+}
+
+static inline void q_is_lesser(q_run *q)
+{
+  q_value a, b;
+
+  Q_FETCH(q, 0, &a);
+  Q_FETCH(q, 1, &b);
+
+  Q_POP(q, 2);
+  Q_PUSH(q, 1);
+
+  Q_STORE(q, 0, Q_BOOL((int64_t)a.data < (int64_t)b.data));
+}
+
+static inline void q_is_lesser_or_eq(q_run *q)
+{
+  q_value a, b;
+
+  Q_FETCH(q, 0, &a);
+  Q_FETCH(q, 1, &b);
+
+  Q_POP(q, 2);
+  Q_PUSH(q, 1);
+
+  Q_STORE(q, 0, Q_BOOL((int64_t)a.data <= (int64_t)b.data));
+}
+
+static inline void q_is_greater_or_eq(q_run *q)
+{
+  q_value a, b;
+
+  Q_FETCH(q, 0, &a);
+  Q_FETCH(q, 1, &b);
+
+  Q_POP(q, 2);
+  Q_PUSH(q, 1);
+
+  Q_STORE(q, 0, Q_BOOL((int64_t)a.data >= (int64_t)b.data));
+}
 
 
 static inline void q_is_pair(q_run *q)

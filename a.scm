@@ -53,3 +53,9 @@
 (print (number? 122))
 (print (procedure? length))
 
+(print 'the-other-stuff)
+(print (<= 0 0))
+(print (< -12 0))
+(print (< 1 -12))
+(print (equal? -12 -12))
+
