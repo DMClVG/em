@@ -405,4 +405,32 @@ static inline void q_drop(q_run *q)
   p->top = (r->top - 1)->pair_top; // pop pairs due to return value being dropped
 }
 
+static inline void q_car(q_run *q)
+{
+  q_value x;
+  Q_FETCH(q, 0, &x);
+  Q_POP(q, 1);
+
+  if (x.type != Q_TYPE_PAIR)
+    q_fatal("car: expected pair");
+  q_pair pair = *((q_pair*)x.data);
+
+  Q_PUSH(q, 1);
+  Q_STORE(q, 0, pair.head); 
+}
+
+static inline void q_cdr(q_run *q)
+{
+  q_value x;
+  Q_FETCH(q, 0, &x);
+  Q_POP(q, 1);
+
+  if (x.type != Q_TYPE_PAIR)
+    q_fatal("cdr: expected pair");
+  q_pair pair = *((q_pair*)x.data);
+
+  Q_PUSH(q, 1);
+  Q_STORE(q, 0, pair.tail); 
+}
+
 #endif

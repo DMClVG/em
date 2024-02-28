@@ -15,6 +15,9 @@
   (evaluate-expr b env
     (evaluate-expr a (env-offset env) `(,op ,cont))))
 
+(define (syntax-unary op expr env cont)
+  (evaluate-expr expr env `(,op ,cont)))
+
 (define (env-offset env)
   (map (lambda (x) (cons (car x) (+ (cdr x) 1))) env))
 
@@ -85,6 +88,8 @@
         ('import (syntax-import (list-ref expr 1) env cont))
 
         ((pair cons) (syntax-binary 'pair (list-ref expr 1) (list-ref expr 2) env cont))
+        ((car dit) (syntax-unary 'car (list-ref expr 1) env cont))
+        ((cdr dot) (syntax-unary 'cdr (list-ref expr 1) env cont))
 
         (else (evaluate-many (reverse expr) env `(call ,(length (cdr expr)) ,cont))))) 
           
@@ -175,7 +180,10 @@
     ('* "q_mul(q);")
     ('/ "q_div(q);")
     ('equal? "q_is_equal(q);")
-    ('pair "q_make_pair(q);")))
+    ('pair "q_make_pair(q);")
+    ('car "q_car(q);")
+    ('cdr "q_cdr(q);")
+    ('print "q_print(q);")))
 
 (define (quote-to-c x symbols)
   (cond
@@ -333,7 +341,7 @@
                 symbols2
                 quotes2)))))
 
-        ((+ - * / equal? pair) ;; binary
+        ((+ - * / equal? pair car cdr print) ;; ops
          (next
            (list-ref op 1) ;; cont
            (cons (op-to-c-call (car op)) code)
@@ -377,20 +385,6 @@
              symbols
              quotes
              paramcount)))
-
-        ('print
-          (let 
-            ((cont (list-ref op 1)))
-            (next
-              cont
-              (cons "q_print(q);" code)
-              lambdas
-              defines
-              fetches
-              imports
-              symbols
-              quotes
-              paramcount)))
              
         ('fetch
          (let 
