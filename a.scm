@@ -1,6 +1,7 @@
 (import b)
 
-(define superduper 
+(define 
+  superduper 
   (c-procedure "superduper"))
 
 (define (wrong x y)
@@ -32,4 +33,4 @@
      (superduper (cdr abc)))))
 
 (print (lambda () '()))
-
+(print (funnee 12))

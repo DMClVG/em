@@ -1,5 +1,5 @@
 (define (funnee a) 
-  (print (+ a 33)))
+  '(h a h a))
 
 (define (factorial n)
   (if (equal? n 0)

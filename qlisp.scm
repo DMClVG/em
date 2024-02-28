@@ -625,7 +625,7 @@
       (if (null? quotes)
         '()
         (cons 
-         (string-append "q_value qt_"(number->string n)";")
+         (string-append "static q_value qt_"(number->string n)";")
          (loop
            (cdr quotes)
            (+ n 1)))))
