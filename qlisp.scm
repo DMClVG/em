@@ -108,6 +108,13 @@
         ('or (syntax-binary 'or (list-ref expr 1) (list-ref expr 2) env cont))
         ('not (syntax-unary 'not (list-ref expr 1) env cont))
 
+        ('null? (syntax-unary 'null? (list-ref expr 1) env cont))
+        ('pair? (syntax-unary 'pair? (list-ref expr 1) env cont))
+        ('procedure? (syntax-unary 'procedure? (list-ref expr 1) env cont))
+        ('boolean? (syntax-unary 'boolean? (list-ref expr 1) env cont))
+        ('number? (syntax-unary 'number? (list-ref expr 1) env cont))
+        ('symbol? (syntax-unary 'symbol? (list-ref expr 1) env cont))
+
         ('print (syntax-print (list-ref expr 1) env cont))
         ('import (syntax-import (list-ref expr 1) env cont))
 
@@ -215,7 +222,13 @@
     ('pair "q_make_pair(q);")
     ('car "q_car(q);")
     ('cdr "q_cdr(q);")
-    ('print "q_print(q);")))
+    ('print "q_print(q);")
+    ('boolean? "q_is_boolean(q);")
+    ('null? "q_is_null(q);")
+    ('procedure? "q_is_procedure(q);")
+    ('pair? "q_is_pair(q);")
+    ('number? "q_is_number(q);")
+    ('symbol? "q_is_symbol(q);")))
 
 (define (quote-to-c x symbols) ;; TODO: remove this
   (cond
@@ -369,7 +382,7 @@
                 symbols2
                 quotes2)))))
 
-        ((+ - * / equal? pair car cdr print and or not) ;; ops
+        ((+ - * / equal? pair car cdr print and or not boolean? null? pair? procedure? number? symbol?) ;; ops
          (next
            (list-ref op 1) ;; cont
            (cons (op-to-c-call (car op)) code)

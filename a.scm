@@ -35,9 +35,6 @@
 (print (lambda () '()))
 (print (funnee 12))
 
-(define (null? x)
-  (equal? x '()))
-
 (define (length ls)
   (define (length-tail n ls)
     (if (null? ls)
@@ -47,5 +44,12 @@
 
 (print (length '()))
 (print (length (range '() 0 100)))
-
 (print (equal? #t #t))
+
+(print (boolean? #f))
+(print (pair? '(a b)))
+(print (null? '()))
+(print (symbol? (car '(c d))))
+(print (number? 122))
+(print (procedure? length))
+

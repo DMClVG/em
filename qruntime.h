@@ -61,10 +61,10 @@ typedef void (*q_function)(q_run* q, void **next);
 #define Q_LAMBDA(f) ((q_value) { .type = Q_TYPE_LAMBDA, .data = (uint64_t)(f) } )
 #define Q_BUFFER(p) ((q_value) { .type = Q_TYPE_BUFFER, .data = (uint64_t)(p) } )
 #define Q_SYMBOL(s) ((q_value) { .type = Q_TYPE_SYMBOL, .data = (uint64_t)(s) } )
-#define Q_BOOL(x) ((q_value) { .type = Q_TYPE_BOOL, .data = !!(x) })
+#define Q_BOOL(x) ((q_value) { .type = Q_TYPE_BOOL, .data = x })
 
 #define Q_NULL ((q_value) { .type = Q_TYPE_NULL, .data = 0 })
-#define Q_TRUE Q_BOOL(255) // bit-flip resistant!
+#define Q_TRUE Q_BOOL(1)
 #define Q_FALSE Q_BOOL(0)
 
 #define Q_STORE(q, n, v) { q_stack *s = &q->stack; q_check_stack_in_bounds(s, n); (s)->top[-(n)] = v; }
@@ -452,17 +452,106 @@ static inline void q_not(q_run *q)
   Q_STORE(q, 0, Q_BOOL(!x.data));
 }
 
-static inline void q_is_greater(q_run *q)
+//static inline void q_is_greater(q_run *q)
+//{
+//  q_value a, b;
+//
+//  Q_FETCH(q, 0, &a);
+//  Q_FETCH(q, 1, &b);
+//
+//  Q_POP(q, 2);
+//  Q_PUSH(q, 1);
+//
+//  Q_STORE(q, 0, Q_BOOL(a.data > b.data));
+//}
+//
+//static inline void q_is_lesser(q_run *q)
+//{
+//  q_value a, b;
+//
+//  Q_FETCH(q, 0, &a);
+//  Q_FETCH(q, 1, &b);
+//
+//  Q_POP(q, 2);
+//  Q_PUSH(q, 1);
+//
+//  Q_STORE(q, 0, Q_BOOL(a.data < b.data));
+//}
+//
+//static inline void q_is_lesser_or_eq(q_run *q)
+//{
+//  q_value a, b;
+//
+//  Q_FETCH(q, 0, &a);
+//  Q_FETCH(q, 1, &b);
+//
+//  Q_POP(q, 2);
+//  Q_PUSH(q, 1);
+//
+//  Q_STORE(q, 0, Q_BOOL(a.data <= b.data));
+//}
+//
+//
+//static inline void q_is_greater_or_eq(q_run *q)
+//{
+//  q_value a, b;
+//
+//  Q_FETCH(q, 0, &a);
+//  Q_FETCH(q, 1, &b);
+//
+//  Q_POP(q, 2);
+//  Q_PUSH(q, 1);
+//
+//  Q_STORE(q, 0, Q_BOOL(a.data >= b.data));
+//}
+
+
+static inline void q_is_pair(q_run *q)
 {
-  q_value a, b;
+  q_value x;
 
-  Q_FETCH(q, 0, &a);
-  Q_FETCH(q, 1, &b);
+  Q_FETCH(q, 0, &x);
+  Q_STORE(q, 0, Q_BOOL(x.type == Q_TYPE_PAIR));
+}
 
-  Q_POP(q, 2);
-  Q_PUSH(q, 1);
+static inline void q_is_null(q_run *q)
+{
+  q_value x;
 
-  Q_STORE(q, 0, Q_NUMBER(a.data > b.data));
+  Q_FETCH(q, 0, &x);
+  Q_STORE(q, 0, Q_BOOL(x.type == Q_TYPE_NULL));
+}
+
+static inline void q_is_procedure(q_run *q)
+{
+  q_value x;
+
+  Q_FETCH(q, 0, &x);
+  Q_STORE(q, 0, Q_BOOL(x.type == Q_TYPE_LAMBDA));
+}
+
+static inline void q_is_number(q_run *q)
+{
+  q_value x;
+
+  Q_FETCH(q, 0, &x);
+  Q_STORE(q, 0, Q_BOOL(x.type == Q_TYPE_NUMBER));
+}
+
+static inline void q_is_symbol(q_run *q)
+{
+  q_value x;
+
+  Q_FETCH(q, 0, &x);
+  Q_STORE(q, 0, Q_BOOL(x.type == Q_TYPE_SYMBOL));
+}
+
+static inline void q_is_boolean(q_run *q)
+{
+  q_value x;
+
+  Q_FETCH(q, 0, &x);
+  Q_STORE(q, 0, Q_BOOL(x.type == Q_TYPE_BOOL));
 }
 
 static inline void q_drop(q_run *q) 
