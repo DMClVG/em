@@ -73,7 +73,7 @@ typedef void (*q_function)(q_run* q, void **next);
 
 static inline void q_fatal(const char *msg)
 {
-  printf("%s", msg);
+  printf("%s\n", msg);
   exit(-22);
 }
 
@@ -153,7 +153,8 @@ static inline void q_pop_ret(q_run *q, int paramcount, void **next)
   r->top--;
   q_frame frame = *r->top;
 
-  *next = frame.ret;
+  if(next != NULL)
+    *next = frame.ret;
 
   // pop frame copy return value to the top of previous stack frame
   q_value ret_value;
@@ -161,6 +162,16 @@ static inline void q_pop_ret(q_run *q, int paramcount, void **next)
   Q_POP(q, paramcount);
   Q_STORE(q, 0, ret_value);
 }
+
+
+static inline void q_pop_keep_ret(q_run *q, int frame_size)
+{
+  q_value ret_value;
+  Q_FETCH(q, 0, &ret_value);
+  Q_POP(q, frame_size);
+  Q_STORE(q, 0, ret_value);
+}
+
 
 static inline void q_debug_print(q_value x)
 {
@@ -281,7 +292,7 @@ static inline void q_make_pair(q_run *q)
 
 static inline void q_call(q_run *q, void** next)
 {
-
+  q_stack *s = &q->stack;
   q_value f;
   Q_FETCH(q, 0, &f);
 

@@ -13,13 +13,24 @@
 
 (define (syntax-binary op a b env cont)
   (evaluate-expr b env
-    (evaluate-expr a (env-offset env) `(,op ,cont))))
+    (evaluate-expr a (env-offset env 1) `(,op ,cont))))
 
 (define (syntax-unary op expr env cont)
   (evaluate-expr expr env `(,op ,cont)))
 
-(define (env-offset env)
-  (map (lambda (x) (cons (car x) (+ (cdr x) 1))) env))
+(define (env-offset env n)
+  (map (lambda (x) (cons (car x) (+ (cdr x) n))) env))
+
+(define (append-names-to-env env names)
+  (let ((offsetted-env (env-offset env (length names))))
+    (append
+      (let loop ((names names) (n 0)) 
+        (if (null? names)
+          '()
+          (cons 
+            (cons (car names) n) 
+            (loop (cdr names) (+ n 1)))))
+      offsetted-env)))
 
 (define (evaluate-thunk thunk env cont)
   (if (null? thunk)
@@ -34,7 +45,7 @@
 (define (evaluate-many exprs env cont)
   (if (null? exprs)
     cont
-    (evaluate-expr (car exprs) env (evaluate-many (cdr exprs) (env-offset env) cont))))
+    (evaluate-expr (car exprs) env (evaluate-many (cdr exprs) (env-offset env 1) cont))))
 
 (define (syntax-lambda params body cont)
   (let ((env (params->env params)))
@@ -42,6 +53,16 @@
           ,(length params) 
           ,(evaluate-thunk body env '())
           ,cont)))
+
+(define (syntax-let bindings body env cont)
+  (evaluate-many 
+    (reverse (map cadr bindings)) 
+    env 
+    `(push-frame
+       ,(evaluate-thunk 
+          body 
+          (append-names-to-env env (map car bindings)) 
+          `(pop-frame ,(length bindings) ,cont)))))
 
 (define (syntax-import module env cont)
   `(import ,module ,cont))
@@ -90,6 +111,8 @@
         ((pair cons) (syntax-binary 'pair (list-ref expr 1) (list-ref expr 2) env cont))
         ((car dit) (syntax-unary 'car (list-ref expr 1) env cont))
         ((cdr dot) (syntax-unary 'cdr (list-ref expr 1) env cont))
+
+        ('let (syntax-let (list-ref expr 1) (list-tail expr 2) env cont))
 
         (else (evaluate-many (reverse expr) env `(call ,(length (cdr expr)) ,cont))))) 
           
@@ -419,6 +442,39 @@
              quotes
              paramcount)))
 
+        ('push-frame
+         (let 
+           ((cont (list-ref op 1)))
+           (next
+             cont
+             (cons 
+               (string-append "q_push_ret(q, NULL);")
+               code)
+             lambdas
+             defines
+             fetches
+             imports
+             symbols
+             quotes
+             paramcount)))
+
+        ('pop-frame
+         (let 
+           ((n (list-ref op 1))
+            (cont (list-ref op 2)))
+           (next
+             cont
+             (cons 
+               (string-append "q_pop_ret(q, "(number->string n)", NULL);")
+               code)
+             lambdas
+             defines
+             fetches
+             imports
+             symbols
+             quotes
+             paramcount)))
+
         ('quote
           (let 
             ((value (list-ref op 1))
@@ -710,6 +766,10 @@
         (display (stitch-symbol-constants (dedupe symbols))))))
 
     ((equal? cmd "--build")
-     (display (stitch-program module (to-c (evaluate-thunk (read-all *stdin*) '() '())))))))
+     (display (stitch-program module (to-c (evaluate-thunk (read-all *stdin*) '() '())))))
+    
+    ((equal? cmd "--build-tree")
+     (display (evaluate-thunk (read-all *stdin*) '() '()))
+     (newline))))
 
 (apply cli (list-tail (command-line) 2))
