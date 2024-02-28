@@ -35,10 +35,17 @@
 (print (lambda () '()))
 (print (funnee 12))
 
-(print (and #t #t))
-(print (and 1 0))
-(print (or 0 1))
-(print (or 0 0))
-(print (not 1))
-(print (not 0))
-(print '())
+(define (null? x)
+  (equal? x '()))
+
+(define (length ls)
+  (define (length-tail n ls)
+    (if (null? ls)
+      n
+      (length-tail (+ n 1) (cdr ls))))
+  (length-tail 0 ls))
+
+(print (length '()))
+(print (length (range '() 0 100)))
+
+(print (equal? #t #t))

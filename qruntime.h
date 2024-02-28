@@ -61,7 +61,7 @@ typedef void (*q_function)(q_run* q, void **next);
 #define Q_LAMBDA(f) ((q_value) { .type = Q_TYPE_LAMBDA, .data = (uint64_t)(f) } )
 #define Q_BUFFER(p) ((q_value) { .type = Q_TYPE_BUFFER, .data = (uint64_t)(p) } )
 #define Q_SYMBOL(s) ((q_value) { .type = Q_TYPE_SYMBOL, .data = (uint64_t)(s) } )
-#define Q_BOOL(x) ((q_value) { .type = Q_TYPE_BOOL, .data = x })
+#define Q_BOOL(x) ((q_value) { .type = Q_TYPE_BOOL, .data = !!(x) })
 
 #define Q_NULL ((q_value) { .type = Q_TYPE_NULL, .data = 0 })
 #define Q_TRUE Q_BOOL(255) // bit-flip resistant!
@@ -224,9 +224,9 @@ static inline void q_print_value(q_value x) {
   case Q_TYPE_BOOL:
     {
       if(x.data)
-        printf("#t", x.data);
+        printf("#t");
       else
-        printf("#f", x.data);
+        printf("#f");
 
     } break;
   case Q_TYPE_LAMBDA:
@@ -409,7 +409,7 @@ static inline void q_is_equal(q_run *q)
   Q_POP(q, 2);
   Q_PUSH(q, 1);
 
-  Q_STORE(q, 0, Q_BOOL(a.data == b.data));
+  Q_STORE(q, 0, Q_BOOL(a.type == b.type && a.data == b.data));
 }
 
 
