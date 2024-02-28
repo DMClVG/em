@@ -185,8 +185,16 @@ static inline void q_print_pair(q_value x)
   q_pair pair = *((q_pair*) x.data);
 
   q_print_value(pair.head);
-  printf(" . ");
-  q_print_value(pair.tail);
+  if (pair.tail.type == Q_TYPE_PAIR)
+  {
+    printf(" ");
+    q_print_pair(pair.tail);
+  } 
+  else if (!(pair.tail.type == Q_TYPE_SYMBOL && (const char*)pair.tail.data == NULL))
+  {
+    printf(" . ");
+    q_print_value(pair.tail);
+  }
 }
 
 static inline void q_print_value(q_value x) {
@@ -198,11 +206,11 @@ static inline void q_print_value(q_value x) {
     } break;
   case Q_TYPE_LAMBDA:
     {
-      printf("<lambda %ld>", x.data);
+      printf("<lambda 0x%lx>", x.data);
     } break;
   case Q_TYPE_SYMBOL:
     {
-      if (x.data == NULL)
+      if ((const char*)x.data == NULL)
       {
         printf("()"); 
       } 
