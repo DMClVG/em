@@ -35,7 +35,9 @@ void superduper(q_run *q, void **next)
 
 void program_exit(q_run *q, void **next)
 {
+#ifdef Q_DEBUG
   printf("end. p=%ld\n", q->pairs.top - q->pairs.base);
+#endif
   exit(0);
 }
 

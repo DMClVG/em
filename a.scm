@@ -1,8 +1,25 @@
-(import b)
+;;(import b)
+;;
+;;(define 
+;;  superduper 
+;;  (c-procedure "superduper"))
 
-(define 
-  superduper 
-  (c-procedure "superduper"))
+;;(if (equal? (cons 'a 'b) (cons 'a 'b))
+;;  (define (display x)
+;;    (display x))
+;;  '()
+
+(define (print x)
+  (display x)
+  (newline))
+
+(define (funnee a) 
+  '(h a h a))
+
+(define (factorial n)
+  (if (equal? n 0)
+    1
+    (* (factorial (- n 1)) n)))
 
 (define (wrong x y)
   (if 0
@@ -26,11 +43,11 @@
 
 (define abc '(a . b))
 (define bc '(b . c))
-(print 
-  ((lambda ()
-     (print 
-       '(a b c d e f g h i j k l m n o p q r s t u v w x y z))
-     (superduper (cdr abc)))))
+;;(print 
+;;  ((lambda ()
+;;     (print 
+;;       '(a b c d e f g h i j k l m n o p q r s t u v w x y z))
+;;     (cdr abc))))
 
 (print (lambda () '()))
 (print (funnee 12))

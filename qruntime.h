@@ -250,15 +250,21 @@ static inline void q_print_value(q_value x) {
   }
 }
 
-static inline void q_print(q_run *q)
+static inline void q_display(q_run *q)
 {
   q_value x;
   Q_FETCH(q, 0, &x);
   
   q_print_value(x);
-  printf("\n");
 
   Q_POP(q, 1);
+  Q_PUSH(q, 1);
+  Q_STORE(q, 0, Q_NUMBER(0));
+}
+
+static inline void q_newline(q_run *q)
+{
+  printf("\n");
   Q_PUSH(q, 1);
   Q_STORE(q, 0, Q_NUMBER(0));
 }

@@ -8,15 +8,15 @@
     ((symbol? head) 
      (evaluate-expr (car expr) env `(define ,head ,cont))))) ;; normal
 
-(define (syntax-print expr env cont)
-  (evaluate-expr expr env `(print ,cont)))
-
 (define (syntax-binary op a b env cont)
   (evaluate-expr b env
     (evaluate-expr a (env-offset env 1) `(,op ,cont))))
 
 (define (syntax-unary op expr env cont)
   (evaluate-expr expr env `(,op ,cont)))
+
+(define (syntax-nullary op env cont)
+  `(,op ,cont))
 
 (define (env-offset env n)
   (map (lambda (x) (cons (car x) (+ (cdr x) n))) env))
@@ -120,7 +120,8 @@
         ('number? (syntax-unary 'number? (list-ref expr 1) env cont))
         ('symbol? (syntax-unary 'symbol? (list-ref expr 1) env cont))
 
-        ('print (syntax-print (list-ref expr 1) env cont))
+        ('display (syntax-unary 'display (list-ref expr 1) env cont))
+        ('newline (syntax-nullary 'newline env cont))
         ('import (syntax-import (list-ref expr 1) env cont))
 
         ((pair cons) (syntax-binary 'pair (list-ref expr 1) (list-ref expr 2) env cont))
@@ -227,7 +228,8 @@
     ('pair "q_make_pair(q);")
     ('car "q_car(q);")
     ('cdr "q_cdr(q);")
-    ('print "q_print(q);")
+    ('display "q_display(q);")
+    ('newline "q_newline(q);")
     ('boolean? "q_is_boolean(q);")
     ('null? "q_is_null(q);")
     ('procedure? "q_is_procedure(q);")
@@ -391,7 +393,7 @@
                 symbols2
                 quotes2)))))
 
-        ((+ - * / equal? pair car cdr print and or not boolean? null? pair? procedure? number? symbol? >= <= > <) ;; ops
+        ((+ - * / equal? pair car cdr display newline and or not boolean? null? pair? procedure? number? symbol? >= <= > <) ;; ops
          (next
            (list-ref op 1) ;; cont
            (cons (op-to-c-call (car op)) code)
