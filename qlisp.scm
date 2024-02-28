@@ -113,6 +113,7 @@
         ((cdr dot) (syntax-unary 'cdr (list-ref expr 1) env cont))
 
         ('let (syntax-let (list-ref expr 1) (list-tail expr 2) env cont))
+        ('c-procedure `(native ,(list-ref expr 1) ,cont))
 
         (else (evaluate-many (reverse expr) env `(call ,(length (cdr expr)) ,cont))))) 
           
@@ -360,7 +361,7 @@
                   lambdas2) 
                 defines2
                 fetches2
-                (cons module imports2)
+                (cons (string-append (symbol->cidentifier module) "_toplevel") imports2)
                 symbols2
                 quotes2)))))
 
@@ -375,6 +376,24 @@
            symbols
            quotes
            paramcount))
+
+        ('native
+         (let 
+           ((name (list-ref op 1))
+            (cont (list-ref op 2)))
+
+           (next
+             (list-ref op 2) ;; cont
+             (cons 
+               (string-append "q_make_lambda(q, "name");") 
+               code)
+             lambdas
+             defines
+             fetches
+             (cons name imports)
+             symbols
+             quotes
+             paramcount)))
 
         ('define 
          (let 
@@ -565,7 +584,9 @@
     (let loop ((ls imports))
        (if (null? ls)
         '()
-        (cons (string-append (top-level-function-signature (symbol->cidentifier (car ls)))";") (loop (cdr ls)))))
+        (cons 
+          (string-append (function-signature (car ls)) ";") 
+          (loop (cdr ls)))))
     "\n"))
 
 (define (stitch-extern-defines defines)

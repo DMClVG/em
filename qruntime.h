@@ -292,13 +292,13 @@ static inline void q_make_pair(q_run *q)
 
 static inline void q_call(q_run *q, void** next)
 {
-  q_stack *s = &q->stack;
   q_value f;
   Q_FETCH(q, 0, &f);
 
   if (f.type == Q_TYPE_LAMBDA)
   {
 #ifdef Q_DEBUG
+    q_stack *s = &q->stack;
     printf("Calling %lx. s=%ld\n", f.data, s->top - s->base);
 #endif
     *next = (void*)f.data;
