@@ -10,6 +10,7 @@
 #define Q_TYPE_BUFFER 4
 #define Q_TYPE_SYMBOL 5
 #define Q_TYPE_BOOL 6
+#define Q_TYPE_NULL 7
 
 typedef struct {
   uint8_t type;
@@ -62,7 +63,7 @@ typedef void (*q_function)(q_run* q, void **next);
 #define Q_SYMBOL(s) ((q_value) { .type = Q_TYPE_SYMBOL, .data = (uint64_t)(s) } )
 #define Q_BOOL(x) ((q_value) { .type = Q_TYPE_BOOL, .data = x })
 
-#define Q_NULL Q_SYMBOL(NULL)
+#define Q_NULL ((q_value) { .type = Q_TYPE_NULL, .data = 0 })
 #define Q_TRUE Q_BOOL(255) // bit-flip resistant!
 #define Q_FALSE Q_BOOL(0)
 
@@ -206,7 +207,7 @@ static inline void q_print_pair(q_value x)
     printf(" ");
     q_print_pair(pair.tail);
   } 
-  else if (!(pair.tail.type == Q_TYPE_SYMBOL && (const char*)pair.tail.data == NULL))
+  else if (pair.tail.type != Q_TYPE_NULL)
   {
     printf(" . ");
     q_print_value(pair.tail);
@@ -234,14 +235,11 @@ static inline void q_print_value(q_value x) {
     } break;
   case Q_TYPE_SYMBOL:
     {
-      if ((const char*)x.data == NULL)
-      {
-        printf("()"); 
-      } 
-      else
-      {
-        printf("%s", (const char*) x.data);
-      }
+      printf("%s", (const char*) x.data);
+    } break;
+  case Q_TYPE_NULL:
+    {
+      printf("()");
     } break;
   case Q_TYPE_PAIR:
     {
@@ -254,7 +252,6 @@ static inline void q_print_value(q_value x) {
 
 static inline void q_print(q_run *q)
 {
-
   q_value x;
   Q_FETCH(q, 0, &x);
   
