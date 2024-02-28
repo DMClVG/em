@@ -50,8 +50,7 @@
     `(branch ,(evaluate-expr iftrue env cont) ,(evaluate-expr iffalse env cont))))
 
 (define (syntax-quote x cont)
-  (unless (symbol? x) (error "todo"))
-  `(symbol ,x ,cont))
+  `(quote ,x ,cont))
 
 (define (repeat x n)
   (let loop ((n n))
@@ -178,8 +177,32 @@
     ('equal? "q_is_equal(q);")
     ('pair "q_make_pair(q);")))
 
+(define (quote-to-c x symbols)
+  (cond
+    ((pair? x) 
+     (call-with-values
+       (lambda () 
+         (quote-to-c (car x) symbols))
+       (lambda (left symbols2) 
+         (call-with-values
+           (lambda () (quote-to-c (cdr x) symbols2))
+           (lambda (right symbols3)
+             (values 
+               (string-append "Q_PAIR(&((q_pair) { .head="left", .tail="right" }))")
+               symbols3))))))
+    ((null? x) (values "Q_NULL" symbols))
+    ((symbol? x) 
+     (values 
+       (string-append "Q_SYMBOL("(symbol->cdef x)")") 
+       (cons x symbols)))
+    ((number? x) 
+     (values 
+       (string-append "Q_NUMBER("(number->string x)")") 
+       symbols))
+    (else (error "quote not supported"))))
+
 (define (to-c ir)
-  (let next ((op ir) (code '()) (lambdas '()) (defines '()) (fetches '()) (imports '()) (symbols '()) (paramcount 0))
+  (let next ((op ir) (code '()) (lambdas '()) (defines '()) (fetches '()) (imports '()) (symbols '()) (quotes '()) (paramcount 0))
     (if (null? op) 
       (values 
         (cons 
@@ -190,7 +213,8 @@
         defines 
         fetches      
         imports
-        symbols)
+        symbols
+        quotes)
         
 
       (case (car op)
@@ -201,9 +225,9 @@
             (cont (list-ref op 3)))
 
            (call-with-values 
-             (lambda () (next thunk '() lambdas defines fetches imports symbols paramcount2))
+             (lambda () (next thunk '() lambdas defines fetches imports symbols quotes paramcount2))
 
-             (lambda (lambdas2 defines2 fetches2 imports2 symbols2)
+             (lambda (lambdas2 defines2 fetches2 imports2 symbols2 quotes2)
                (next 
                  cont
                  (cons 
@@ -217,6 +241,7 @@
                  fetches2
                  imports2
                  symbols2
+                 quotes2
                  paramcount)))))
 
 
@@ -226,13 +251,13 @@
             (iffalse (list-ref op 2)))
 
            (call-with-values 
-             (lambda () (next iftrue '() lambdas defines fetches imports symbols paramcount))
+             (lambda () (next iftrue '() lambdas defines fetches imports symbols quotes paramcount))
 
-             (lambda (lambdas2 defines2 fetches2 imports2 symbols2)
+             (lambda (lambdas2 defines2 fetches2 imports2 symbols2 quotes2)
                (call-with-values 
-                 (lambda () (next iffalse '() lambdas2 defines2 fetches2 imports2 symbols2 paramcount))
+                 (lambda () (next iffalse '() lambdas2 defines2 fetches2 imports2 symbols2 quotes2 paramcount))
 
-                 (lambda (lambdas3 defines3 fetches3 imports3 symbols3)
+                 (lambda (lambdas3 defines3 fetches3 imports3 symbols3 quotes3)
                    (values
                      (cons (cons 
                              (string-append 
@@ -245,7 +270,8 @@
                      defines3
                      fetches3
                      imports3
-                     symbols3)))))))
+                     symbols3
+                     quotes3)))))))
 
         ('call
          (let 
@@ -263,12 +289,13 @@
                defines
                fetches
                imports
-               symbols)
+               symbols
+               quotes)
              
              (call-with-values 
-               (lambda () (next cont '() lambdas defines fetches imports symbols paramcount))
+               (lambda () (next cont '() lambdas defines fetches imports symbols quotes paramcount))
 
-               (lambda (lambdas2 defines2 fetches2 imports2 symbols2)
+               (lambda (lambdas2 defines2 fetches2 imports2 symbols2 quotes2)
                  (values 
                    (cons 
                      (cons 
@@ -280,7 +307,8 @@
                    defines2
                    fetches2
                    imports2
-                   symbols2))))))
+                   symbols2
+                   quotes2))))))
 
         ('import
          (let 
@@ -288,9 +316,9 @@
             (cont (list-ref op 2)))
 
            (call-with-values 
-            (lambda () (next cont '() lambdas defines fetches imports symbols paramcount))
+            (lambda () (next cont '() lambdas defines fetches imports symbols quotes paramcount))
 
-            (lambda (lambdas2 defines2 fetches2 imports2 symbols2)
+            (lambda (lambdas2 defines2 fetches2 imports2 symbols2 quotes2)
               (values 
                 (cons 
                   (cons 
@@ -302,7 +330,8 @@
                 defines2
                 fetches2
                 (cons module imports2)
-                symbols2)))))
+                symbols2
+                quotes2)))))
 
         ((+ - * / equal? pair) ;; binary
          (next
@@ -313,6 +342,7 @@
            fetches
            imports
            symbols
+           quotes
            paramcount))
 
         ('define 
@@ -328,6 +358,7 @@
              fetches
              imports
              symbols
+             quotes
              paramcount)))
 
         ('number
@@ -344,6 +375,7 @@
              fetches
              imports
              symbols
+             quotes
              paramcount)))
 
         ('print
@@ -357,6 +389,7 @@
               fetches
               imports
               symbols
+              quotes
               paramcount)))
              
         ('fetch
@@ -373,6 +406,7 @@
              (cons name fetches)
              imports
              symbols
+             quotes
              paramcount)))
 
         ('drop
@@ -388,25 +422,29 @@
              fetches
              imports
              symbols
+             quotes
              paramcount)))
 
-        ('symbol
+        ('quote
           (let 
-            ((sym (list-ref op 1))
+            ((value (list-ref op 1))
              (cont (list-ref op 2)))
-            (next
-              cont
-              (cons 
-                (string-append "Q_STORE(q, 0, Q_SYMBOL("(symbol->cdef sym)"));") 
-                (cons 
-                  "Q_PUSH(q, 1);" 
-                  code))
-              lambdas
-              defines
-              fetches
-              imports
-              (cons sym symbols)
-              paramcount)))
+            (let 
+              ((quoted-value (list (quote-to-c value symbols))))
+              (next
+                  cont
+                  (cons 
+                     (string-append "Q_STORE(q, 0, qt_"(number->string (length quotes))");") 
+                     (cons 
+                       "Q_PUSH(q, 1);" 
+                       code))
+                  lambdas
+                  defines
+                  fetches
+                  imports
+                  (list-ref quoted-value 1)
+                  (cons value quotes)
+                  paramcount))))
               
 
         ('pick
@@ -427,6 +465,7 @@
              fetches
              imports
              symbols
+             quotes
              paramcount)))
 
         (else (error "bad operation"))))))
@@ -508,7 +547,98 @@
       symbols)
     "\n"))
 
-(define (stitch-program module lambdas defines fetches imports symbols)
+
+(define (stitch-quotes-definitions quotes)
+  (string-join
+    (let loop ((quotes quotes) (n 0))
+      (if (null? quotes)
+        '()
+        (cons 
+         (string-append "q_value qt_"(number->string n)";")
+         (loop
+           (cdr quotes)
+           (+ n 1)))))
+    "\n"))
+
+(define (quote-init n id qt ls)
+  (cond 
+    ((pair? qt) 
+     (call-with-values 
+       (lambda () (quote-init n id (car qt) ls))
+       (lambda (ls2 n2)
+         (call-with-values 
+           (lambda () (quote-init n2 id (cdr qt) ls2))
+           (lambda (ls3 n3)
+             (values
+               (append
+                 ls3
+                 (list
+                   (string-append "static q_pair "id"_p_"(number->string n3)";")
+                   (string-append id"_p_"(number->string n3)".head = "id"_"(number->string (- n2 1))";")
+                   (string-append id"_p_"(number->string n3)".tail = "id"_"(number->string (- n3 1))";")
+                   (string-append "q_value "id"_"(number->string n3)";")
+                   (string-append id"_"(number->string n3)" = Q_PAIR(&"id"_p_"(number->string n3)");")))
+                 
+               (+ 1 n3)))))))
+
+    ((symbol? qt)
+     (values 
+       (append
+         ls
+         (list 
+          (string-append "q_value "id"_"(number->string n)";")
+          (string-append id"_"(number->string n)" = Q_SYMBOL("(symbol->cdef qt)");")))
+         
+       (+ n 1)))
+    ((number? qt)
+     (values 
+       (append 
+         ls
+         (list
+           (string-append "q_value "id"_"(number->string n)";")
+           (string-append id"_"(number->string n)" = Q_NUMBER("(number->string qt)");")))
+         
+       (+ n 1)))
+    ((null? qt)
+     (values 
+       (append 
+         ls
+         (list
+           (string-append "q_value "id"_"(number->string n)";")
+           (string-append id"_"(number->string n)" = Q_NULL;")))
+         
+       (+ n 1)))
+    (else (error "quote not supported"))))
+
+(define (initialize-quote id qt ls)
+  (call-with-values 
+    (lambda ()
+      (quote-init
+        0
+        id
+        qt
+        '())) 
+    (lambda (ls n)
+      (append 
+        ls
+        (list (string-append id" = "id"_"(number->string (- n 1))";"))))))
+
+(define (stitch-quotes-initialization quotes)
+  (string-join
+    (let loop ((quotes quotes) (n (- (length quotes) 1)))
+      (if (null? quotes)
+        '()
+         (cons
+          (string-join 
+            (initialize-quote 
+              (string-append "qt_"(number->string n))
+              (car quotes)
+              '())
+           "\n")
+          (loop (cdr quotes) (- n 1)))))
+    "\n"))
+
+(define (stitch-program module lambdas defines fetches imports symbols quotes)
   (string-join 
     `(
       "#include \"qruntime.h\""
@@ -525,11 +655,15 @@
       "// symbols"
       ,(stitch-symbols (dedupe symbols))
       ""
+      "// quotes"
+      ,(stitch-quotes-definitions quotes)
+      ""
       "// lambdas"
       ,(stitch-lambdas module lambdas)
       ""
       "// toplevel"
       ,(string-append (top-level-function-signature module) " {") 
+      ,(stitch-quotes-initialization quotes)
       ,(string-append (lambda->label (- (length lambdas) 1))"(q, next);")
       "}")
     "\n"))
@@ -578,7 +712,7 @@
     ((equal? cmd "--extract-symbols")
      (call-with-values 
       (lambda () (to-c (evaluate-thunk (read-all *stdin*) '() '())))
-      (lambda (lambdas defines fetches imports symbols)
+      (lambda (lambdas defines fetches imports symbols quotes)
         (display (stitch-symbol-constants (dedupe symbols))))))
 
     ((equal? cmd "--build")
