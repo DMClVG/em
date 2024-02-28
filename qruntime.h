@@ -9,6 +9,7 @@
 #define Q_TYPE_LAMBDA 3
 #define Q_TYPE_BUFFER 4
 #define Q_TYPE_SYMBOL 5
+#define Q_TYPE_BOOL 6
 
 typedef struct {
   uint8_t type;
@@ -59,7 +60,11 @@ typedef void (*q_function)(q_run* q, void **next);
 #define Q_LAMBDA(f) ((q_value) { .type = Q_TYPE_LAMBDA, .data = (uint64_t)(f) } )
 #define Q_BUFFER(p) ((q_value) { .type = Q_TYPE_BUFFER, .data = (uint64_t)(p) } )
 #define Q_SYMBOL(s) ((q_value) { .type = Q_TYPE_SYMBOL, .data = (uint64_t)(s) } )
+#define Q_BOOL(x) ((q_value) { .type = Q_TYPE_BOOL, .data = x })
+
 #define Q_NULL Q_SYMBOL(NULL)
+#define Q_TRUE Q_BOOL(255) // bit-flip resistant!
+#define Q_FALSE Q_BOOL(0)
 
 #define Q_STORE(q, n, v) { q_stack *s = &q->stack; q_check_stack_in_bounds(s, n); (s)->top[-(n)] = v; }
 #define Q_FETCH(q, n, v) { q_stack *s = &q->stack; q_check_stack_in_bounds(s, n); *(v) = (s)->top[-(n)]; }
@@ -214,6 +219,14 @@ static inline void q_print_value(q_value x) {
   case Q_TYPE_NUMBER:
     {
       printf("%ld", x.data);
+    } break;
+  case Q_TYPE_BOOL:
+    {
+      if(x.data)
+        printf("#t", x.data);
+      else
+        printf("#f", x.data);
+
     } break;
   case Q_TYPE_LAMBDA:
     {
@@ -399,7 +412,47 @@ static inline void q_is_equal(q_run *q)
   Q_POP(q, 2);
   Q_PUSH(q, 1);
 
-  Q_STORE(q, 0, Q_NUMBER(a.data == b.data));
+  Q_STORE(q, 0, Q_BOOL(a.data == b.data));
+}
+
+
+static inline void q_and(q_run *q)
+{
+  q_value a, b;
+
+  Q_FETCH(q, 0, &a);
+  Q_FETCH(q, 1, &b);
+
+  Q_POP(q, 2);
+  Q_PUSH(q, 1);
+
+  Q_STORE(q, 0, Q_BOOL(a.data && b.data));
+}
+
+static inline void q_or(q_run *q)
+{
+  q_value a, b;
+
+  Q_FETCH(q, 0, &a);
+  Q_FETCH(q, 1, &b);
+
+  Q_POP(q, 2);
+  Q_PUSH(q, 1);
+
+  Q_STORE(q, 0, Q_BOOL(a.data || b.data));
+}
+
+
+static inline void q_not(q_run *q)
+{
+  q_value x;
+
+  Q_FETCH(q, 0, &x);
+
+  Q_POP(q, 1);
+  Q_PUSH(q, 1);
+
+  Q_STORE(q, 0, Q_BOOL(!x.data));
 }
 
 static inline void q_is_greater(q_run *q)

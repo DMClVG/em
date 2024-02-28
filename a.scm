@@ -34,3 +34,10 @@
 
 (print (lambda () '()))
 (print (funnee 12))
+
+(print (and #t #t))
+(print (and 1 0))
+(print (or 0 1))
+(print (or 0 0))
+(print (not 1))
+(print (not 0))

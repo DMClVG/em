@@ -104,6 +104,9 @@
         ('* (syntax-binary '* (list-ref expr 1) (list-ref expr 2) env cont))
         ('/ (syntax-binary '/ (list-ref expr 1) (list-ref expr 2) env cont))
         ('equal? (syntax-binary 'equal? (list-ref expr 1) (list-ref expr 2) env cont))
+        ('and (syntax-binary 'and (list-ref expr 1) (list-ref expr 2) env cont))
+        ('or (syntax-binary 'or (list-ref expr 1) (list-ref expr 2) env cont))
+        ('not (syntax-unary 'not (list-ref expr 1) env cont))
 
         ('print (syntax-print (list-ref expr 1) env cont))
         ('import (syntax-import (list-ref expr 1) env cont))
@@ -114,6 +117,7 @@
 
         ('let (syntax-let (list-ref expr 1) (list-tail expr 2) env cont))
         ('c-procedure `(native ,(list-ref expr 1) ,cont))
+
 
         (else (evaluate-many (reverse expr) env `(call ,(length (cdr expr)) ,cont))))) 
           
@@ -147,6 +151,7 @@
 (define (immediate x env cont)
   (cond
     ((number? x) `(number ,x ,cont))
+    ((boolean? x) `(boolean ,x ,cont))
     ((symbol? x) (env-variable-pointer env x cont))
     (else (error "bad immediate"))))
 
@@ -204,12 +209,15 @@
     ('* "q_mul(q);")
     ('/ "q_div(q);")
     ('equal? "q_is_equal(q);")
+    ('and "q_and(q);")
+    ('or "q_or(q);")
+    ('not "q_not(q);")
     ('pair "q_make_pair(q);")
     ('car "q_car(q);")
     ('cdr "q_cdr(q);")
     ('print "q_print(q);")))
 
-(define (quote-to-c x symbols)
+(define (quote-to-c x symbols) ;; TODO: remove this
   (cond
     ((pair? x) 
      (call-with-values
@@ -227,11 +235,7 @@
      (values 
        (string-append "Q_SYMBOL("(symbol->cdef x)")") 
        (cons x symbols)))
-    ((number? x) 
-     (values 
-       (string-append "Q_NUMBER("(number->string x)")") 
-       symbols))
-    (else (error "quote not supported"))))
+    (else (values "" symbols))))
 
 (define (to-c ir)
   (let next ((op ir) (code '()) (lambdas '()) (defines '()) (fetches '()) (imports '()) (symbols '()) (quotes '()) (paramcount 0))
@@ -365,7 +369,7 @@
                 symbols2
                 quotes2)))))
 
-        ((+ - * / equal? pair car cdr print) ;; ops
+        ((+ - * / equal? pair car cdr print and or not) ;; ops
          (next
            (list-ref op 1) ;; cont
            (cons (op-to-c-call (car op)) code)
@@ -428,6 +432,26 @@
              quotes
              paramcount)))
              
+        ('boolean
+         (let
+           ((x (list-ref op 1))
+            (cont (list-ref op 2)))
+           (next
+             cont
+             (cons 
+               (string-append 
+                 (if x 
+                   "Q_STORE(q, 0, Q_TRUE);" 
+                   "Q_STORE(q, 0, Q_FALSE);"))
+               (cons "Q_PUSH(q, 1);" code))
+             lambdas
+             defines
+             fetches
+             imports
+             symbols
+             quotes
+             paramcount)))
+
         ('fetch
          (let 
             ((name (list-ref op 1))
@@ -679,6 +703,14 @@
            (string-append id"_"(number->string n)" = Q_NULL;")))
          
        (+ n 1)))
+    ((boolean? qt)
+     (values 
+         (append 
+           ls
+           (list
+             (string-append "q_value "id"_"(number->string n)";")
+             (string-append id"_"(number->string n)" = " (if qt "Q_TRUE" "Q_FALSE") ";")))
+         (+ n 1)))
     (else (error "quote not supported"))))
 
 (define (initialize-quote id qt ls)
