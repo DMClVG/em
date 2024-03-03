@@ -6,14 +6,14 @@
 
 #define Q_TYPE_NUMBER 1
 #define Q_TYPE_PAIR 2
-#define Q_TYPE_LAMBDA 3
 #define Q_TYPE_BUFFER 4
 #define Q_TYPE_SYMBOL 5
 #define Q_TYPE_BOOL 6
 #define Q_TYPE_NULL 7
+#define Q_TYPE_LAMBDA 8
 
 typedef struct {
-  uint8_t type;
+  uint64_t meta;
   uint64_t data;
 } q_value;
 
@@ -30,6 +30,7 @@ typedef struct {
 typedef struct {
   void* ret;
   q_pair* pair_top;
+  q_value* env;
 } q_frame;
 
 typedef struct {
@@ -52,18 +53,21 @@ typedef struct {
   q_stack stack;
   q_rets rets;
   q_pairs pairs;
+  //q_stack env_stack; 
+  q_value* env;
 } q_run;
 
 typedef void (*q_function)(q_run* q, void **next);
 
-#define Q_NUMBER(n) ((q_value) { .type = Q_TYPE_NUMBER, .data = n } )
-#define Q_PAIR(p) ((q_value) { .type = Q_TYPE_PAIR, .data = (uint64_t) (p) } )
-#define Q_LAMBDA(f) ((q_value) { .type = Q_TYPE_LAMBDA, .data = (uint64_t)(f) } )
-#define Q_BUFFER(p) ((q_value) { .type = Q_TYPE_BUFFER, .data = (uint64_t)(p) } )
-#define Q_SYMBOL(s) ((q_value) { .type = Q_TYPE_SYMBOL, .data = (uint64_t)(s) } )
-#define Q_BOOL(x) ((q_value) { .type = Q_TYPE_BOOL, .data = x })
+#define Q_NUMBER(n) ((q_value) { .meta = Q_TYPE_NUMBER, .data = n } )
+#define Q_PAIR(p) ((q_value) { .meta = Q_TYPE_PAIR, .data = (uint64_t) (p) } )
+#define Q_LAMBDA(f) ((q_value) { .meta = Q_TYPE_LAMBDA, .data = (uint64_t)(f) } )
+#define Q_CLOSURE(env, f) ((q_value) { .meta = (uint64_t)(env), .data = (uint64_t)(f) } )
+#define Q_BUFFER(p) ((q_value) { .meta = Q_TYPE_BUFFER, .data = (uint64_t)(p) } )
+#define Q_SYMBOL(s) ((q_value) { .meta = Q_TYPE_SYMBOL, .data = (uint64_t)(s) } )
+#define Q_BOOL(x) ((q_value) { .meta = Q_TYPE_BOOL, .data = x })
 
-#define Q_NULL ((q_value) { .type = Q_TYPE_NULL, .data = 0 })
+#define Q_NULL ((q_value) { .meta = Q_TYPE_NULL, .data = 0 })
 #define Q_TRUE Q_BOOL(1)
 #define Q_FALSE Q_BOOL(0)
 
@@ -73,6 +77,7 @@ typedef void (*q_function)(q_run* q, void **next);
 #define Q_POP(q, n) { q_stack *s = &q->stack; q_check_stack_underflow(s, n); (s)->top -= n; }
 #define Q_PUSH(q, n) { q_stack *s = &q->stack; q_check_stack_overflow(s, n); (s)->top += n; }
 #define Q_BRANCH(q, a, b, next) { q_stack *s = &q->stack; if((s)->top[0].data) { Q_POP(q, 1); *(next) = a; } else { Q_POP(q, 1); *(next) = b; } }
+#define Q_ENV(q, n, v) { q_value *env = q->env; *(v) = env[n]; }
 
 #define Q_STACK_SIZE 1024
 #define Q_PAIRS_SIZE 1024
@@ -135,6 +140,7 @@ static inline void q_init(q_run *q)
   q_init_stack(&q->stack);
   q_init_pairs(&q->pairs);
   q_init_rets(&q->rets);
+  q->env = NULL;
 }
 
 static inline void q_push_ret(q_run *q, void *ret)
@@ -142,7 +148,7 @@ static inline void q_push_ret(q_run *q, void *ret)
   q_pairs *p = &q->pairs;
   q_rets *r = &q->rets;
 
-  *r->top = (q_frame) { .ret = ret, .pair_top = p->top };
+  *r->top = (q_frame) { .env = q->env, .ret = ret, .pair_top = p->top };
   r->top++;
   if (r->top - r->base >= Q_STACK_SIZE)
     exit(-1);
@@ -160,7 +166,10 @@ static inline void q_pop_ret(q_run *q, int paramcount, void **next)
   q_frame frame = *r->top;
 
   if(next != NULL)
+  {
     *next = frame.ret;
+    q->env = frame.env;
+  }
 
   // pop frame copy return value to the top of previous stack frame
   q_value ret_value;
@@ -182,7 +191,7 @@ static inline void q_pop_keep_ret(q_run *q, int frame_size)
 static inline void q_debug_print(q_value x)
 {
 #ifdef Q_DEBUG
-  printf("%x:%ld\n", x.type, x.data);
+  printf("%x:%ld\n", x.meta x.data);
 #endif
 }
 
@@ -202,12 +211,12 @@ static inline void q_print_pair(q_value x)
   q_pair pair = *((q_pair*) x.data);
 
   q_print_value(pair.head);
-  if (pair.tail.type == Q_TYPE_PAIR)
+  if (pair.tail.meta == Q_TYPE_PAIR)
   {
     printf(" ");
     q_print_pair(pair.tail);
   } 
-  else if (pair.tail.type != Q_TYPE_NULL)
+  else if (pair.tail.meta != Q_TYPE_NULL)
   {
     printf(" . ");
     q_print_value(pair.tail);
@@ -215,7 +224,7 @@ static inline void q_print_pair(q_value x)
 }
 
 static inline void q_print_value(q_value x) {
-  switch (x.type)
+  switch (x.meta)
   {
   case Q_TYPE_NUMBER:
     {
@@ -276,6 +285,25 @@ static inline void q_make_lambda(q_run *q, void* f)
   Q_STORE(q, 0, Q_LAMBDA(f));
 }
 
+
+static inline void q_make_closure(q_run *q, int parencount, int freecount, void* f)
+{
+  q_value *new_env = calloc(freecount, sizeof(q_value));
+  if (q->env == NULL)
+    parencount = 0;
+
+  for(int i = 0; i < freecount - parencount; i++)
+  {
+    Q_FETCH(q, i, &new_env[i]);
+  }
+  for(int i = 0; i < parencount; i++)
+  {
+    new_env[freecount - 1 + i] = q->env[i];
+  }
+  Q_PUSH(q, 1);
+  Q_STORE(q, 0, Q_CLOSURE(new_env, f));
+}
+
 static inline void q_compact_pairs(q_run *q)
 {
   q_fatal("todo");
@@ -311,18 +339,19 @@ static inline void q_call(q_run *q, void** next)
   q_value f;
   Q_FETCH(q, 0, &f);
 
-  if (f.type == Q_TYPE_LAMBDA)
+  if (f.meta >= Q_TYPE_LAMBDA)
   {
 #ifdef Q_DEBUG
     q_stack *s = &q->stack;
     printf("Calling %lx. s=%ld\n", f.data, s->top - s->base);
 #endif
     *next = (void*)f.data;
+    q->env = (q_value*)f.meta;
     Q_POP(q, 1);
   }
   else
   {
-    fprintf(stderr, "Tried to call value of type %x. Aborting\n", f.type);
+    fprintf(stderr, "Tried to call value of type %lx. Aborting\n", f.meta);
     exit(-1);
   }
 }
@@ -415,7 +444,7 @@ static inline void q_is_equal(q_run *q)
   Q_POP(q, 2);
   Q_PUSH(q, 1);
 
-  Q_STORE(q, 0, Q_BOOL(a.type == b.type && a.data == b.data));
+  Q_STORE(q, 0, Q_BOOL(a.meta == b.meta && a.data == b.data));
 }
 
 
@@ -516,7 +545,7 @@ static inline void q_is_pair(q_run *q)
   q_value x;
 
   Q_FETCH(q, 0, &x);
-  Q_STORE(q, 0, Q_BOOL(x.type == Q_TYPE_PAIR));
+  Q_STORE(q, 0, Q_BOOL(x.meta == Q_TYPE_PAIR));
 }
 
 static inline void q_is_null(q_run *q)
@@ -524,7 +553,7 @@ static inline void q_is_null(q_run *q)
   q_value x;
 
   Q_FETCH(q, 0, &x);
-  Q_STORE(q, 0, Q_BOOL(x.type == Q_TYPE_NULL));
+  Q_STORE(q, 0, Q_BOOL(x.meta == Q_TYPE_NULL));
 }
 
 static inline void q_is_procedure(q_run *q)
@@ -532,7 +561,7 @@ static inline void q_is_procedure(q_run *q)
   q_value x;
 
   Q_FETCH(q, 0, &x);
-  Q_STORE(q, 0, Q_BOOL(x.type == Q_TYPE_LAMBDA));
+  Q_STORE(q, 0, Q_BOOL(x.meta >= Q_TYPE_LAMBDA));
 }
 
 static inline void q_is_number(q_run *q)
@@ -540,7 +569,7 @@ static inline void q_is_number(q_run *q)
   q_value x;
 
   Q_FETCH(q, 0, &x);
-  Q_STORE(q, 0, Q_BOOL(x.type == Q_TYPE_NUMBER));
+  Q_STORE(q, 0, Q_BOOL(x.meta == Q_TYPE_NUMBER));
 }
 
 static inline void q_is_symbol(q_run *q)
@@ -548,7 +577,7 @@ static inline void q_is_symbol(q_run *q)
   q_value x;
 
   Q_FETCH(q, 0, &x);
-  Q_STORE(q, 0, Q_BOOL(x.type == Q_TYPE_SYMBOL));
+  Q_STORE(q, 0, Q_BOOL(x.meta == Q_TYPE_SYMBOL));
 }
 
 static inline void q_is_boolean(q_run *q)
@@ -556,7 +585,7 @@ static inline void q_is_boolean(q_run *q)
   q_value x;
 
   Q_FETCH(q, 0, &x);
-  Q_STORE(q, 0, Q_BOOL(x.type == Q_TYPE_BOOL));
+  Q_STORE(q, 0, Q_BOOL(x.meta == Q_TYPE_BOOL));
 }
 
 static inline void q_drop(q_run *q) 
@@ -574,7 +603,7 @@ static inline void q_car(q_run *q)
   Q_FETCH(q, 0, &x);
   Q_POP(q, 1);
 
-  if (x.type != Q_TYPE_PAIR)
+  if (x.meta != Q_TYPE_PAIR)
     q_fatal("car: expected pair");
   q_pair pair = *((q_pair*)x.data);
 
@@ -588,7 +617,7 @@ static inline void q_cdr(q_run *q)
   Q_FETCH(q, 0, &x);
   Q_POP(q, 1);
 
-  if (x.type != Q_TYPE_PAIR)
+  if (x.meta != Q_TYPE_PAIR)
     q_fatal("cdr: expected pair");
   q_pair pair = *((q_pair*)x.data);
 

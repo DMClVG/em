@@ -19,7 +19,12 @@
   `(,op ,cont))
 
 (define (env-offset env n)
-  (map (lambda (x) (cons (car x) (+ (cdr x) n))) env))
+  (map 
+    (lambda (x) 
+      (if (number? (cdr x))
+        (cons (car x) (+ (cdr x) n)) 
+        x))
+    env))
 
 (define (append-names-to-env env names)
   (let ((offsetted-env (env-offset env (length names))))
@@ -47,12 +52,43 @@
     cont
     (evaluate-expr (car exprs) env (evaluate-many (cdr exprs) (env-offset env 1) cont))))
 
-(define (syntax-lambda params body cont)
-  (let ((env (params->env params)))
-    `(lambda 
-          ,(length params) 
-          ,(evaluate-thunk body env '())
-          ,cont)))
+(define (env-make-free env)
+  (map (lambda (var) 
+         (if (pair? (cdr var))
+           `(,(car var) ((car (cdr var)) (+ (car (cdr (cdr var))) (- (length env) (free-count env)))))
+           `(,(car var) (free ,(cdr var)))))
+       env))
+
+(define (get-frees code)
+  (if (pair? code)
+    (case (car code)
+      ;;('lambda (get-frees (list-ref code 2))) ;; only cont, not body
+      ('free (list (list-ref code 1)))
+      (else
+        (apply append (map get-frees (cdr code)))))
+    '()))
+
+(define (free-count env)
+  (if (null? env)
+    0
+    (+ (if (pair? (cdr (car env))) 1 0) (free-count (cdr env)))))
+
+(define (syntax-lambda params body parent-env cont)
+  (let* ((env (append (params->env params) (env-make-free parent-env)))
+         (body (evaluate-thunk body env '()))
+         (frees (get-frees body)))
+    (if (null? frees)
+      `(lambda 
+            ,(length params) 
+            ,body 
+            ,cont)
+      `(closure 
+         ,(length params) 
+         ,body 
+         ,cont
+         ,(length parent-env)
+         ,(free-count parent-env)
+         ,(cdr )))))
 
 (define (syntax-let bindings body env cont)
   (evaluate-many 
@@ -96,7 +132,7 @@
         ('define (syntax-define (list-ref expr 1) (list-tail expr 2) env cont)) 
         ('if (syntax-if (list-ref expr 1) (list-ref expr 2) (list-ref expr 3) env cont))
 
-        ('lambda (syntax-lambda (list-ref expr 1) (list-tail expr 2) cont))
+        ('lambda (syntax-lambda (list-ref expr 1) (list-tail expr 2) env cont))
         ('begin (evaluate-thunk (list-tail expr 1) env cont))
 
         ('+ (syntax-binary '+ (list-ref expr 1) (list-ref expr 2) env cont))
@@ -158,7 +194,9 @@
 (define (env-variable-pointer env name cont)
   (let ((match (assoc name env)))
     (if match
-      `(pick ,(cdr match) ,cont)
+      (if (pair? (cdr match))
+        `(free ,(list-ref (car (cdr match)) 1) ,cont)
+        `(pick ,(cdr match) ,cont))
       `(fetch ,name ,cont))))
 
 (define (immediate x env cont)
@@ -278,7 +316,7 @@
         
 
       (case (car op)
-        ('lambda 
+        ((lambda closure) 
          (let 
            ((paramcount2 (list-ref op 1))
             (thunk (list-ref op 2))
@@ -292,7 +330,7 @@
                  cont
                  (cons 
                    (string-append 
-                     "q_make_lambda(q, &" 
+                     (if (equal? (car op) 'lambda) "q_make_lambda(q, &" (string-append "q_make_closure(q, "(number->string (list-ref op 5))", "(number->string (list-ref op 4))", &"))
                      (lambda->label (- (length lambdas2) 1))
                      ");") 
                    code) 
@@ -563,6 +601,26 @@
                   (cons value quotes)
                   paramcount))))
               
+        ('free
+         (let 
+           ((n (list-ref op 1))
+            (cont (list-ref op 2)))
+          (next
+            cont
+            (cons 
+              "Q_STORE(q, 0, temp);"
+              (cons
+                "Q_PUSH(q, 1);" 
+                (cons 
+                  (string-append "Q_ENV(q, " (number->string n) ", &temp);") 
+                  code)))
+            lambdas
+            defines
+            fetches
+            imports
+            symbols
+            quotes
+            paramcount)))
 
         ('pick
          (let 

@@ -7,7 +7,7 @@ void superduper(q_run *q, void **next)
 
   Q_FETCH(q, 0, &x);
 
-  switch(x.type)
+  switch(x.meta)
   {
   case Q_TYPE_PAIR:
     {
