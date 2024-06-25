@@ -76,30 +76,30 @@
 ;;(print (< 1 -12))
 ;;(print (equal? -12 -12))
 ;;
-(define (reverse ls)
-
-  (define (reverse-tail ls res)
-    (if (null? ls)
-      res
-      (reverse-tail (cdr ls) (cons (car ls) res))))
-  
-  (reverse-tail ls '()))
-
-
-(define (map f ls)
-
-  (define (map-tail f ls res)
-    (if (null? ls)
-      res
-      (map-tail f (cdr ls) (cons (f (car ls)) res))))
-
- (reverse (map-tail f ls '())))
+;;(define (reverse ls)
+;;
+;;  (define (reverse-tail ls res)
+;;    (if (null? ls)
+;;      res
+;;      (reverse-tail (cdr ls) (cons (car ls) res))))
+;;  
+;;  (reverse-tail ls '()))
+;;
+;;
+;;(define (map f ls)
+;;
+;;  (define (map-tail f ls res)
+;;    (if (null? ls)
+;;      res
+;;      (map-tail f (cdr ls) (cons (f (car ls)) res))))
+;;
+;; (reverse (map-tail f ls '())))
 ;;
 ;;(define (call f x)
 ;;  (f x))
 ;;(define (this-thing)
 ;;  (let ((other (cons 1 1)))
-;;    (let ((alpha 12)
+;;    (let ((alpha 12) 
 ;;          (sud 13))
 ;;      (display alpha)
 ;;      (newline))
@@ -108,7 +108,8 @@
      ;; (print (lambda () (+ sud alpha))))
       ;;(print (map (lambda (x) (+ 0 alpha)) '(1 2 3 4 1 23 34 4 43 5325 235 3 43))))
 
-(let ((avar 1)
-      (mama 11))
-  (print (map (lambda (x) (+ mama x)) '(1 2 3))))
+(print '(yolo bebe))
+;;(let ((avar 1)
+;;      (mama 11))
+;;  (print (map (lambda (x) (+ mama x)) '(1 2 3))))
 ;;(print (call symbol? 'babauioe))
