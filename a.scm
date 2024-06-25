@@ -9,12 +9,12 @@
 ;;    (display x))
 ;;  '()
 
-(define (print x)
-  (display x)
-  (newline))
+;;(define (print x)
+;;  (display x)
+;;  (newline))
 
-;;(define (funnee a) 
-;;  '(h a h a))
+(define (funnee a) 
+  '(h a h a))
 ;;
 ;;(define (factorial n)
 ;;  (if (equal? n 0)
@@ -108,8 +108,36 @@
      ;; (print (lambda () (+ sud alpha))))
       ;;(print (map (lambda (x) (+ 0 alpha)) '(1 2 3 4 1 23 34 4 43 5325 235 3 43))))
 
-(print '(yolo bebe))
-;;(let ((avar 1)
-;;      (mama 11))
-;;  (print (map (lambda (x) (+ mama x)) '(1 2 3))))
+;;(display (cons 1 (cons 2 '(yaya . baba))))
+;;(newline)
+;;(display '(1 2 (ya) 4))
+;;(newline)
+;;(display (funnee 2))
+;;
+;;(define (loop x)
+;;  (display x)
+;;  (newline)
+;;  (loop (+ x 1)))
+
+;;(loop 0)
+
+(define (aba a b c) 
+  (display (cons a ( cons b (cons c '())))))
+
+(let ((avar 1)
+      (mama 11))
+  (display mama) 
+  (newline)
+  (display (+ mama avar))
+  (newline))
+
+(display (and #t #f))
+(display (or #f #t))
+(display (not #f))
+
+(if (>= 2 3)
+  (display 'whaaat)
+  (display 'nooo))
+
+
 ;;(print (call symbol? 'babauioe))

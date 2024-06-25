@@ -2,19 +2,18 @@ P=program
 LDFLAGS=
 CFLAGS=-g -Wall -fstack-protector -O0 -fno-strict-aliasing -fno-semantic-interposition # -DQ_DEBUG
 CC=gcc
-OBJECTS=a.o b.o
+SCRIPTS=a.fs b.fs
 MAIN=main.o
-SYMBOLS=symbols.o
-DEPS=qruntime.h
+SYMBOLS=symbols.fs
+DEPS=qruntime.fs
 
-$(P): $(OBJECTS) $(DEPS) $(MAIN) $(SYMBOLS)
-	$(CC) -o $(P) $(OBJECTS) $(MAIN) $(SYMBOLS)
+$(P): $(SCRIPTS) $(SYMBOLS)
 
-%.c: %.scm qlisp.scm $(DEPS)
+%.fs: %.scm qlisp.scm $(DEPS)
 	cat $< | ./repl qlisp.scm --build $(basename $@) > $@
 
-symbols.c: $(OBJECTS)
-	cat $(OBJECTS:.o=.scm) | ./repl qlisp.scm --extract-symbols ee > $@
+symbols.fs: $(SCRIPTS)
+	cat $(SCRIPTS:.fs=.scm) | ./repl qlisp.scm --extract-symbols ee > $@
 
 clean: 
 	rm -f $(OBJECTS)
