@@ -76,12 +76,12 @@ check-bool >r check-bool r> ;
 
 : q-oftype? = nip ;
 
-: q-bool? Q-BOOL-T q-oftype? ;
-: q-null? Q-NULL-T  q-oftype? ;
-: q-procedure? Q-LAMBDA-T q-oftype? ;
-: q-pair? Q-PAIR-T q-oftype? ;
-: q-number? Q-NUM-T q-oftype? ;
-: q-symbol? Q-BOOL-T q-oftype? ;
+: q-bool? Q-BOOL-T q-oftype? q-bool ;
+: q-null? Q-NULL-T  q-oftype? q-bool ;
+: q-procedure? Q-LAMBDA-T q-oftype? q-bool ;
+: q-pair? Q-PAIR-T q-oftype? q-bool ;
+: q-number? Q-NUM-T q-oftype? q-bool ;
+: q-symbol? Q-BOOL-T q-oftype? q-bool ;
 
 variable argnum 
 variable paramnum 
@@ -144,6 +144,6 @@ endcase
 ' display is display*
 
 : q-display 2dup display ;
-: q-car 2dup check-pair car ;
-: q-cdr 2dup check-pair cdr ;
+: q-car check-pair car ;
+: q-cdr check-pair cdr ;
 

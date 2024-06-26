@@ -358,7 +358,7 @@
                    (values
                      (cons (cons 
                              (string-append 
-                               "q? if " 
+                               "q? r> drop if " 
                                (lambda->label (- (length lambdas2) 1)) ; if true
                                " else "
                                (lambda->label (- (length lambdas3) 1)) ; if false

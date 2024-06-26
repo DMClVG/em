@@ -8,20 +8,20 @@
 ;;    (display x))
 ;;  '()
 
-;;(define (print x)
-;;  (display x)
-;;  (newline))
+(define (print x)
+  (display x)
+  (newline))
 
-;;(define (funnee a) 
-;;  '(h a h a))
-;;
-;;
+(define (funnee a) 
+  '(h a h a))
+
+
 (import b)
 ;;
-;;(define (factorial n)
-;;  (if (equal? n 0)
-;;    1
-;;    (* (factorial (- n 1)) n)))
+(define (factorial n)
+ (if (equal? n 0)
+    1
+    (* (factorial (- n 1)) n)))
 ;;
 ;;(define (wrong x y)
 ;;  (if 0
@@ -54,12 +54,14 @@
 ;;(print (lambda () '()))
 ;;(print (funnee 12))
 ;;
-;;(define (length ls)
-;;  (define (length-tail n ls)
-;;    (if (null? ls)
-;;      n
-;;      (length-tail (+ n 1) (cdr ls))))
-;;  (length-tail 0 ls))
+
+(define (length ls)
+  (define (length-tail n ls)
+    (if (null? ls)
+      n
+      (length-tail (+ n 1) (cdr ls))))
+  (length-tail 0 ls))
+
 ;;
 ;;(print (length '()))
 ;;(print (length (range '() 0 100)))
@@ -78,14 +80,14 @@
 ;;(print (< 1 -12))
 ;;(print (equal? -12 -12))
 ;;
-;;(define (reverse ls)
-;;
-;;  (define (reverse-tail ls res)
-;;    (if (null? ls)
-;;      res
-;;      (reverse-tail (cdr ls) (cons (car ls) res))))
-;;  
-;;  (reverse-tail ls '()))
+(define (reverse ls)
+
+  (define (reverse-tail ls res)
+    (if (null? ls)
+      res
+      (reverse-tail (cdr ls) (cons (car ls) res))))
+  
+  (reverse-tail ls '()))
 ;;
 ;;
 ;;(define (map f ls)
@@ -144,11 +146,11 @@
 ;;(display (or #f #t))
 ;;(display (not #f))
 ;;
-(count 1 1000000000)
-(define (loop)
-  (display 42)
-  (loop))
-(loop)
+(count 1 1000)
+;;(define (loop)
+;;  (display 42)
+;;  (loop))
+;;(loop)
 ;;
 ;;(if (>= 2 3)
 ;;  (display 'whaaat)
@@ -163,6 +165,10 @@
 ;;(display (< 4 2))
 ;;(newline)
 
-(display (funny? 'adam))
+(print (funny? 'adam))
+(print (factorial 19))
+
+(print (length '(a b c d e f g)))
+(print (reverse '(a b c d e f g)))
 
 ;;(print (call symbol? 'babauioe))
