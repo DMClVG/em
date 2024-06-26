@@ -67,7 +67,7 @@ check-bool >r check-bool r> ;
 : q>= setup-2num >= q-bool ;
 : q<= setup-2num <= q-bool ;
 
-: q= rot = -rot = and ;    
+: q= rot = -rot = and q-bool ;    
 
 : q-and setup-2bool and q-bool ;
 : q-or setup-2bool or q-bool ;

@@ -73,7 +73,7 @@
     (+ (if (pair? (cdr (car env))) 1 0) (free-count (cdr env)))))
 
 (define (syntax-lambda params body parent-env cont)
-  (let* ((env (append (params->env params) (env-make-free parent-env)))
+  (let* ((env (append (params->env (reverse params)) (env-make-free parent-env)))
          (body (evaluate-thunk body env '()))
          (frees (get-frees body)))
     (if (null? frees)
@@ -91,7 +91,7 @@
 
 (define (syntax-let bindings body env cont)
   (evaluate-many 
-    (reverse (map cadr bindings)) 
+    (map cadr bindings) 
     env 
     `(push-frame
        ,(evaluate-thunk 
@@ -167,7 +167,7 @@
         ('c-procedure `(native ,(list-ref expr 1) ,cont))
 
 
-        (else (evaluate-many (reverse expr) env `(call ,(length (cdr expr)) ,cont))))) 
+        (else (evaluate-many (append (cdr expr) (list (car expr))) env `(call ,(length (cdr expr)) ,cont))))) 
           
     (immediate expr env cont)))
 
@@ -188,7 +188,7 @@
   (error "todo"))
 
 (define (define->cdefine name)
-  (string-append "d_" (symbol->cidentifier name)))
+  (string-append "d-" (symbol->cidentifier name)))
 
 (define (env-variable-pointer env name cont)
   (let ((match (assoc name env)))
@@ -246,10 +246,10 @@
     
 
 (define (lambda->label id)
-  (string-append "f_" (number->string id)))
+  (string-append "f-" (number->string id)))
 
 (define (symbol->cdef sym)
-  (string-append "s_" (symbol->cidentifier sym)))
+  (string-append "s-" (symbol->cidentifier sym)))
 
 
 (define (op-to-c-call op)
@@ -273,8 +273,8 @@
     ('pair? "q-pair?")
     ('number? "q-number?")
     ('symbol? "q-symbol?")
-    ('> "q<")
-    ('< "q>")
+    ('< "q<")
+    ('> "q>")
     ('<= "q<=")
     ('>= "q>=")))
 
@@ -419,14 +419,14 @@
               (values 
                 (cons 
                   (cons 
-                    (string-append "*next = &"(symbol->cidentifier module)"_toplevel;")
+                    (string-append (lambda->label (- (length lambdas2) 1)))
                     (cons
-                      (string-append "q_push_ret(q, &" (lambda->label (- (length lambdas2) 1)) ");")
+                      (string-append (symbol->cidentifier module)"-toplevel")   
                       code))
                   lambdas2) 
                 defines2
                 fetches2
-                (cons (string-append (symbol->cidentifier module) "_toplevel") imports2)
+                (cons (string-append (symbol->cidentifier module) "-toplevel") imports2)
                 symbols2
                 quotes2)))))
 
@@ -584,7 +584,7 @@
               (next
                   cont
                   (cons 
-                     (string-append "qt_"(number->string (length quotes))" 2@") 
+                     (string-append "qt-"(number->string (length quotes))" 2@") 
                      code)
                   lambdas
                   defines
@@ -679,7 +679,7 @@
        (if (null? ls)
         '()
         (cons 
-          (string-append (function-signature (car ls)) ";") 
+          (string-append "") 
           (loop (cdr ls)))))
     "\n"))
 
@@ -688,7 +688,7 @@
     (let loop ((ls defines))
        (if (null? ls)
         '()
-        (cons (string-append "extern q_value " (define->cdefine (car ls)) ";") (loop (cdr ls)))))
+        (cons "" (loop (cdr ls)))))
     "\n"))
 
 (define (filter p ls)
@@ -702,7 +702,7 @@
    (filter (lambda (x) (not (member x b))) a))
 
 (define (top-level-function-signature module)
-  (function-signature (string-append module"_toplevel")))
+  (function-signature (string-append module"-toplevel")))
   
 (define (stitch-symbols symbols)
   (string-join
@@ -719,7 +719,7 @@
       (if (null? quotes)
         '()
         (cons 
-         (string-append "2variable qt_"(number->string n))
+         (string-append "2variable qt-"(number->string n))
          (loop
            (cdr quotes)
            (+ n 1)))))
@@ -795,18 +795,19 @@
          (cons
           (string-join 
             (initialize-quote 
-              (string-append "qt_"(number->string n))
+              (string-append "qt-"(number->string n))
               (car quotes)
               '())
            "\n")
           (loop (cdr quotes) (- n 1)))))
     "\n"))
 
-(define (stitch-program module lambdas defines fetches imports symbols quotes)
+(define (stitch-program module lambdas defines fetches imports symbols quotes debug?)
   (string-join 
     `(
       "include qruntime.fs"
       "include symbols.fs"
+      ;; ,(if debug? (string-append ": rl postpone include " module ".fs ;"))
       ""
       "\\ defines"
       ,(stitch-defines (dedupe defines))
@@ -881,7 +882,7 @@
         (display (stitch-symbol-constants (dedupe symbols))))))
 
     ((equal? cmd "--build")
-     (display (stitch-program module (to-c (evaluate-thunk (read-all *stdin*) '() '())))))
+     (display (stitch-program module (to-c (evaluate-thunk (read-all *stdin*) '() '())) #t)))
     
     ((equal? cmd "--build-tree")
      (display (evaluate-thunk (read-all *stdin*) '() '()))

@@ -1,4 +1,3 @@
-;;(import b)
 ;;
 ;;(define 
 ;;  superduper 
@@ -13,8 +12,11 @@
 ;;  (display x)
 ;;  (newline))
 
-(define (funnee a) 
-  '(h a h a))
+;;(define (funnee a) 
+;;  '(h a h a))
+;;
+;;
+(import b)
 ;;
 ;;(define (factorial n)
 ;;  (if (equal? n 0)
@@ -121,23 +123,42 @@
 
 ;;(loop 0)
 
-(define (aba a b c) 
-  (display (cons a ( cons b (cons c '())))))
+;;(define (aba a b c) 
+;;  (display (cons a (cons b (cons c '())))))
+;;
+;;(let ((avar 1)
+;;      (mama 11)) (display mama) 
+;;  (newline)
+;;  (display (+ mama avar))
+;;  (newline))
+;;
+;;(define (count start end)
+;;  (if (<= start end)
+;;    (begin 
+;;      (display start)
+;;      (newline)
+;;      (count (+ start 1) end))
+;;    '()))
+;;
+;;;(display (and #t #f))
+;;(display (or #f #t))
+;;(display (not #f))
+;;
+;;(count 1 10)
+;;
+;;(if (>= 2 3)
+;;  (display 'whaaat)
+;;  (display 'nooo))
+;;
+;;(define (ja? x)
+;;  (if (< x 18)
+;;    (display 'nein)
+;;    (display 'ja)))
+;;
+;;(aba 1 2 3)
+;;(display (< 4 2))
+;;(newline)
 
-(let ((avar 1)
-      (mama 11))
-  (display mama) 
-  (newline)
-  (display (+ mama avar))
-  (newline))
-
-(display (and #t #f))
-(display (or #f #t))
-(display (not #f))
-
-(if (>= 2 3)
-  (display 'whaaat)
-  (display 'nooo))
-
+(display (funny? 'sandy))
 
 ;;(print (call symbol? 'babauioe))
