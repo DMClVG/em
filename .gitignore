@@ -1,4 +1,6 @@
 *.o
 *.c
-!main.c
+a.fs
+b.fs
+symbols.fs
 program
