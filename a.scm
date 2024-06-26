@@ -132,19 +132,23 @@
 ;;  (display (+ mama avar))
 ;;  (newline))
 ;;
-;;(define (count start end)
-;;  (if (<= start end)
-;;    (begin 
-;;      (display start)
-;;      (newline)
-;;      (count (+ start 1) end))
-;;    '()))
+(define (count start end)
+  (if (<= start end)
+    (begin 
+      (display start)
+      (newline)
+      (count (+ start 1) end))
+    '()))
 ;;
 ;;;(display (and #t #f))
 ;;(display (or #f #t))
 ;;(display (not #f))
 ;;
-;;(count 1 10)
+(count 1 1000000000)
+(define (loop)
+  (display 42)
+  (loop))
+(loop)
 ;;
 ;;(if (>= 2 3)
 ;;  (display 'whaaat)
@@ -159,6 +163,6 @@
 ;;(display (< 4 2))
 ;;(newline)
 
-(display (funny? 'sandy))
+(display (funny? 'adam))
 
 ;;(print (call symbol? 'babauioe))

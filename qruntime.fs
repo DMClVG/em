@@ -11,6 +11,7 @@ rp@ constant rbase
 
 : q-unbox drop ; \ drop tag 
 
+: rdrop r> drop ;
 : rdepth rbase rp@ - ; 
 
 : q-num Q-NUM-T ;
@@ -101,16 +102,12 @@ variable stackp
   stackp @ paramnum @ + sp! \ update pointer
 ;
 
-: shove-back \ for tail call
+: shove-back ( n d -- ) \ for tail call
   reorder-stack
   update-stack-pointer 
 ;
 
-: q-call-tail 
-rdrop rdrop 
-swap 1+ swap \ include lambda callee in stack manipulation
-shove-back 
-check-lambda execute ;
+: q-call-tail postpone check-lambda postpone r> postpone drop postpone execute ; immediate
 
 : display-num 0 <# #s #> type ;
 
@@ -124,7 +121,7 @@ cdr dup Q-PAIR-T = if
 else
   dup Q-NULL-T <> if 
   ."  . " display*
-  else q-drop endif
+  else q-drop then
 then
 ;
 
@@ -132,7 +129,7 @@ then
 dup symbol-pointer swap symbol-length type
 ;
 : display-null drop ." ()" ;
-: display-bool if ." #t" else ." #f" endif ;
+: display-bool if ." #t" else ." #f" then ;
 
 : display 
 case 

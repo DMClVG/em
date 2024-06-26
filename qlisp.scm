@@ -304,7 +304,7 @@
       (values 
         (cons 
           (cons 
-            (string-append "")  
+            (string-append "1 " (number->string paramcount)" shove-back")   ;; copy result to the top of parent's stackframe
             code) 
           lambdas) 
         defines 
@@ -380,8 +380,9 @@
              (values
                (cons 
                  (cons 
-                   (string-append (number->string argcount)" "(number->string paramcount) " q-call-tail") 
-                   code) 
+                   "check-lambda r> drop execute" 
+                   ;;"q-call-tail" 
+                   (cons (string-append (number->string  (+ argcount 1))" "(number->string paramcount) " shove-back") code)) 
                  lambdas)
                defines
                fetches
@@ -805,10 +806,7 @@
 (define (stitch-program module lambdas defines fetches imports symbols quotes debug?)
   (string-join 
     `(
-      "include qruntime.fs"
-      "include symbols.fs"
       ;; ,(if debug? (string-append ": rl postpone include " module ".fs ;"))
-      ""
       "\\ defines"
       ,(stitch-defines (dedupe defines))
       ""
@@ -830,8 +828,8 @@
       "\\ toplevel"
       ,(string-append (top-level-function-signature module) "") 
       ,(stitch-quotes-initialization quotes)
-      ,(string-append (lambda->label (- (length lambdas) 1)))
-      " ;")
+      ,(string-append (lambda->label (- (length lambdas) 1)) " ;")
+      )
     "\n"))
 
 ;;(begin 
