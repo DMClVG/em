@@ -10,6 +10,7 @@
 rp@ constant rbase
 
 : q-unbox drop ; \ drop tag 
+: q-tag nip ;
 
 : rdrop r> drop ;
 : rdepth rbase rp@ - ; 
@@ -29,8 +30,7 @@ rp@ constant rbase
   r> Q-SYMBOL-T
 ;
 
-: symbol-length 1 cells + @ ;
-: symbol-pointer 0 cells + @ ;
+: symbol-string 2@ ;
 
 : q-pair ( a t b t -- p tag  )
   here 4 cells allot >r
@@ -125,9 +125,7 @@ else
 then
 ;
 
-: display-symbol 
-dup symbol-pointer swap symbol-length type
-;
+: display-symbol symbol-string type ;
 : display-null drop ." ()" ;
 : display-bool if ." #t" else ." #f" then ;
 
