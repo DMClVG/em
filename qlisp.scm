@@ -1,4 +1,5 @@
 #lang racket
+(require struct-update)
 
 (define (todo)
   (error "todo"))
@@ -10,116 +11,122 @@
      (newline))
    vals))
 
-(struct context (env frees))
+(struct context (env free-binds ops) #:transparent)
+(define-struct-updaters context)
 
-(define (append-ir ctx ir) '())
+(struct environment (binds parent) #:transparent)
+(define-struct-updaters environment)
+
+;;(define (append-ir ctx ir) '())
+(define (push-ir ctx op) (context-ops-set ctx (append op (list (context-ops ctx)))))
 
 (define (syntax-binary op a b ctx)
-  (append-ir (evaluate-expr b (evaluate-expr a ctx)) `(op)))
+  (evaluate-expr a (evaluate-expr b (push-ir ctx `(op)))))
 
 (define (syntax-unary op expr ctx)
-  (append-ir (evaluate-expr expr ctx) `(,op)))
+  (evaluate-expr expr (push-ir ctx `(,op))))
 
 (define (syntax-nullary op ctx)
-  (append-ir ctx `(,op)))
-
-
-(define (syntax-define head expr ctx)
-  (cond 
-    ((pair? head) 
-     (syntax-define (first head) (list (append `(lambda ,(rest head)) expr)) ctx)) ;; lambda
-    ((symbol? head) 
-     (append-ir (evaluate-expr (first expr) ctx) `(define ,head))))) ;; normal
-
-
-(define (evaluate-thunk thunk ctx)
-  (if (null? thunk)
-      ctx
-      (evaluate-expr 
-       (car thunk) 
-       (if (pair? (cdr thunk)) ; at tail?
-           `(drop ,(evaluate-thunk (cdr thunk) ctx))
-           (evaluate-thunk (cdr thunk) ctx)))))
+  (push-ir ctx `(,op)))
 
 (define (evaluate-many exprs ctx)
-  (foldl (lambda (ctx expr) (evaluate-expr expr ctx)) ctx) exprs)
-
-(define (make-closure ctx body-ctx)
-  ((append-ir (evaluate-many (context-frees body-ctx) ctx) `(closure))))
-
-(define (make-lambda-body-context parent-env params)
-  (context '() '()))
-
-(define (syntax-lambda params body ctx)
-  (let* [(body-ctx (evaluate-thunk body (make-lambda-body-context ('env ctx) params)))]
-    (make-closure body-ctx)))
-
-(define (syntax-let bindings body ctx)
-  (evaluate-many 
-   (map cadr bindings)  
-   `(push-frame
-     ,(evaluate-thunk 
-       body 
-       (append-names-to-env env (map car bindings)) 
-       `(pop-frame ,(length bindings) ,cont)))))
-
-(define (syntax-import module ctx)
-  `(import ,module ,cont))
-
-(define (syntax-if condition iftrue iffalse env cont)
-  (evaluate-expr 
-   condition 
-   env 
-   `(branch ,(evaluate-expr iftrue env cont) ,(evaluate-expr iffalse env cont))))
+  (foldr (lambda (expr ctx) (evaluate-expr expr ctx)) ctx exprs))
 
 (define (syntax-quote x cont)
   `(quote ,x ,cont))
 
+(define (call-op argc) `(call ,argc))
+
 (define (evaluate-call callee args ctx)
-  (evaluate-many (append args (list callee)) ctx `(call ,(length (cdr expr)) ,cont)))
+  (evaluate-many
+   (append args `(,callee)) ;; arguments
+   (push-ir ctx  (call-op (length args))) ;; call-op
+   ))
+
+
+(define (fetch-free-vars free-binds ctx)
+  (foldr (lambda (free-var ctx) (fetch-name free-var ctx)) ctx free-binds)
+  )
+
+
+(define (params->env params parent)
+  (environment (let next-param ((params params) (res '()))
+    (if (pair? params)
+      (next-param (cdr params) (cons (cons (car params) (length res)) res))
+      res)) parent))
+
+(define (evaluate-lambda params body ctx)
+  (let* ((env (context-env ctx))
+         (param-count (length params))
+         (body-env (params->env params env))
+         (body-ctx (evaluate-thunk body (context body-env '() '()))))
+
+    (fetch-free-vars (context-free-binds body-ctx)
+                     (push-ir
+                      (context env (context-free-binds ctx) (context-ops body-ctx))
+                      `(lambda ,param-count)))))
 
 (define (evaluate-expr expr ctx)
   (if (pair? expr)
       (if (or #f (equal? (car expr) 'quote))
           ;; quotes
-          (syntax-quote (list-ref expr 1) cont) 
+          (todo) 
 
           (let ((f (first expr)))
             (case f
-              ;; special forms
-              ('define (syntax-define (list-ref expr 1) (list-tail expr 2) ctx)) 
-              ('if (syntax-if (list-ref expr 1) (list-ref expr 2) (list-ref expr 3) ctx))
-              ('lambda (syntax-lambda (list-ref expr 1) (list-tail expr 2) ctx))
-              ('begin (evaluate-thunk (list-tail expr 1) ctx))
-              ('import (syntax-import (list-ref expr 1) ctx))
-              ('let (syntax-let (list-ref expr 1) (list-tail expr 2) ctx))
-
               ;; built-in calls
               ((+ - * / >= <= > < equal? and or not)
                (syntax-binary (second expr) (third expr) expr ctx))
 
               ((null? pair? procedure? boolean? number? symbol? display car cdr cons)
-               (syntax-unary f (list-ref expr 1) ctx))
+               (syntax-unary f (second expr 1) ctx))
         
               ((newline) (syntax-nullary f ctx))
 
-              ;; calls
-              (else (evaluate-call (first expr) (rest expr) ctx)))) 
+              ('lambda (evaluate-lambda (second expr) (list-tail expr 3) ctx))
 
-          ;; immediates/variables
-          (leaf-expr expr ctx))))
-  
+              ;; calls
+              (else (evaluate-call (first expr) (rest expr) ctx)))))
+
+      ;; immediates/variables
+      (leaf-expr expr ctx)))
+
+(define (get-bound name env)
+  (cond
+    ((eq? env #f) #f)
+    ((assoc name (environment-binds env)) => (lambda (n) `(,env ,n)))
+    (else (get-bound name (environment-parent env)))))
+
+(define (local-bind? bind env) (eq? (first bind) env) )  
+
+(define (insert-free bind ctx)
+  (context-free-binds-update ctx (lambda (frees) (cons (first (second bind)) frees))))
+
+(define (env-name name env ctx)
+  (cond
+    ((get-bound name env) =>
+                          (lambda (bind) (if (local-bind? bind env)
+                                             (push-ir ctx `(pick ,(second (second bind))))
+                                             (push-ir (insert-free bind ctx) `(up ,(length (context-free-binds ctx)))))))
+    (else (push-ir ctx `(fetch ,name)))))
+
+(define (fetch-name x ctx)
+  (env-name x (context-env ctx) ctx))
+
 (define (leaf-expr x ctx)
   (cond
     ((number? x) 
-     (ir-append ctx `(number ,x)))
+     (push-ir ctx `(number ,x)))
     ((boolean? x) 
-     (ir-append ctx `(boolean ,x)))
+     (push-ir ctx `(boolean ,x)))
     ((symbol? x) 
-     (env-name x ctx))
+     (fetch-name x ctx))
     (else 
-     (error "bad expression"))))
+     (error "bad expression " x))))
 
   
 
+(define mock-ctx (context (environment '((a 0)) (environment '((b 0) (c 1)) #f)) '() '()
 
+
+                          ))
