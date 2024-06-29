@@ -344,6 +344,7 @@
     "\n"))
 
 (define (to-c ir)
+
   (let next ((op ir) (code '()) (lambdas '()) (defines '()) (fetches '()) (imports '()) (symbols '()) (quotes '()) (paramcount 0))
     (if (null? op) 
       (values 
@@ -358,8 +359,12 @@
         symbols
         quotes)
         
-
-      (case (car op)
+      
+      (begin  (display op)
+              (newline)
+  (case (car op)
+  ;;  ('quote (error "nah"))
+    
         ((closure) 
          (let 
            ((paramcount2 (list-ref op 1))
@@ -388,7 +393,8 @@
                  paramcount)))))
 
 
-        ('branch 
+        ((branch)
+         (error "stfu")
          (let 
            ((iftrue (list-ref op 1))
             (iffalse (list-ref op 2)))
@@ -416,7 +422,7 @@
                      symbols3
                      quotes3)))))))
 
-        ('call
+        ((call)
          (let 
            ((argcount (list-ref op 1))
             (cont (list-ref op 2)))
@@ -454,7 +460,7 @@
                    symbols2
                    quotes2))))))
 
-        ('import
+        ((import)
          (let 
            ((module (list-ref op 1))
             (cont (list-ref op 2)))
@@ -489,7 +495,7 @@
            quotes
            paramcount))
 
-        ('native
+        ((native)
          (let 
            ((name (list-ref op 1))
             (cont (list-ref op 2)))
@@ -507,7 +513,7 @@
              quotes
              paramcount)))
 
-        ('define 
+        ((define) 
          (let 
            ((name (list-ref op 1))
             (cont (list-ref op 2)))
@@ -523,7 +529,7 @@
              quotes
              paramcount)))
 
-        ('number
+        ((number)
          (let
            ((x (list-ref op 1))
             (cont (list-ref op 2)))
@@ -538,7 +544,7 @@
              quotes
              paramcount)))
              
-        ('boolean
+        ((boolean)
          (let
            ((x (list-ref op 1))
             (cont (list-ref op 2)))
@@ -558,7 +564,7 @@
              quotes
              paramcount)))
 
-        ('fetch
+        ((fetch)
          (let 
             ((name (list-ref op 1))
              (cont (list-ref op 2)))
@@ -575,7 +581,7 @@
              quotes
              paramcount)))
 
-        ('drop
+        ((drop)
          (let 
            ((cont (list-ref op 1)))
            (next
@@ -591,7 +597,7 @@
              quotes
              paramcount)))
 
-        ('push-frame
+        ((push-frame)
          (let 
            ((cont (list-ref op 1)))
            (next
@@ -605,7 +611,7 @@
              quotes
              paramcount)))
 
-        ('pop-frame
+        ((pop-frame)
          (let 
            ((n (list-ref op 1))
             (cont (list-ref op 2)))
@@ -622,26 +628,11 @@
              quotes
              paramcount)))
 
-        ('quote
-          (let 
-            ((value (list-ref op 1))
-             (cont (list-ref op 2)))
-            (let 
-              ((quoted-value (list (quote-to-c value symbols))))
-              (next
-                  cont
-                  (cons 
-                     (string-append "qt-"(number->string (length quotes))" 2@") 
-                     code)
-                  lambdas
-                  defines
-                  fetches
-                  imports
-                  (list-ref quoted-value 1)
-                  (cons value quotes)
-                  paramcount))))
+        ((quote)
+          
+          )
               
-        ('free
+        ((free)
          (let 
            ((n (list-ref op 1))
             (cont (list-ref op 2)))
@@ -662,7 +653,7 @@
             quotes
             paramcount)))
 
-        ('pick
+        ((pick)
          (let 
             ((n (list-ref op 1))
              (cont (list-ref op 2)))
@@ -679,4 +670,4 @@
              quotes
              paramcount)))
 
-        (else (error "bad operation"))))))
+        (else (error "bad operation")))))))
