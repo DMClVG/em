@@ -9,7 +9,8 @@
    (lambda (x)
      (display x)
      (newline))
-   vals))
+   vals)
+  (first vals))
 
 (struct context (env free-binds ops) #:transparent)
 (define-struct-updaters context)
@@ -29,8 +30,19 @@
 (define (syntax-nullary op ctx)
   (push-ir ctx `(,op)))
 
+(define (env-offset env n)
+  (environment (map (lambda (bind) (list (first bind) (+ n (second bind)))) (environment-binds env)) (environment-parent env)))
+
+(define (push-env-offset ctx)
+  (context-env-update ctx (lambda (env) (env-offset env 1))))
+
+(define (pop-env-offset n ctx)
+  (context-env-update ctx (lambda (env) (env-offset env (- n)))))
+
 (define (evaluate-many exprs ctx)
-  (foldr (lambda (expr ctx) (evaluate-expr expr ctx)) ctx exprs))
+  (let loop ((exprs exprs) (ctx ctx))
+    (if (null? exprs) ctx
+    (evaluate-expr (first exprs) (pop-env-offset 1 (loop (rest exprs) (push-env-offset ctx)))))))
 
 (define (syntax-quote x cont)
   `(quote ,x ,cont))
@@ -48,23 +60,40 @@
   (foldr (lambda (free-var ctx) (fetch-name free-var ctx)) ctx free-binds)
   )
 
+(define (evaluate-thunk thunk ctx)
+  (if (null? thunk)
+    ctx
+    (evaluate-expr 
+      (first thunk)  
+      (if (pair? (rest thunk)) ; not at tail?
+        (push-ir (evaluate-thunk (rest thunk) ctx) `(drop))
+        (evaluate-thunk (cdr thunk) ctx)))))
 
 (define (params->env params parent)
   (environment (let next-param ((params params) (res '()))
     (if (pair? params)
-      (next-param (cdr params) (cons (cons (car params) (length res)) res))
+      (next-param (cdr params) (cons (list (car params) (length res)) res))
       res)) parent))
 
 (define (evaluate-lambda params body ctx)
   (let* ((env (context-env ctx))
          (param-count (length params))
-         (body-env (params->env params env))
-         (body-ctx (evaluate-thunk body (context body-env '() '()))))
+         (body-env (params->env (reverse params) env))
+         (body-ctx (evaluate-thunk body (context body-env '() '())))
+         (free-count (length (context-free-binds body-ctx))))
 
     (fetch-free-vars (context-free-binds body-ctx)
                      (push-ir
-                      (context env (context-free-binds ctx) (context-ops body-ctx))
-                      `(lambda ,param-count)))))
+                      (context env (context-free-binds ctx) (context-ops ctx))
+                      `(closure ,param-count ,free-count ,(context-ops body-ctx))))))
+
+(define (do-define name value ctx)
+  (evaluate-expr value (push-ir ctx `(define ,name))))
+
+(define (syntax-define name expr ctx)
+  (if (list? name)
+      (do-define (first name) `(lambda ,(rest name) ,@expr) ctx)
+      (do-define name (first expr) ctx)))
 
 (define (evaluate-expr expr ctx)
   (if (pair? expr)
@@ -76,14 +105,16 @@
             (case f
               ;; built-in calls
               ((+ - * / >= <= > < equal? and or not)
-               (syntax-binary (second expr) (third expr) expr ctx))
+               (syntax-binary f (second expr) (third expr) ctx))
 
               ((null? pair? procedure? boolean? number? symbol? display car cdr cons)
-               (syntax-unary f (second expr 1) ctx))
+               (syntax-unary f (second expr) ctx))
         
               ((newline) (syntax-nullary f ctx))
 
-              ('lambda (evaluate-lambda (second expr) (list-tail expr 3) ctx))
+              ('define (syntax-define (second expr) (list-tail expr 2) ctx))
+              ('if (syntax-if (second expr) (third expr) (fourth expr) ctx))
+              ('lambda (evaluate-lambda (second expr) (list-tail expr 2) ctx))
 
               ;; calls
               (else (evaluate-call (first expr) (rest expr) ctx)))))
@@ -124,9 +155,21 @@
     (else 
      (error "bad expression " x))))
 
-  
 
-(define mock-ctx (context (environment '((a 0)) (environment '((b 0) (c 1)) #f)) '() '()
+(define (read-all port)
+  (let ((read-value (read port)))
+    (if (eof-object? read-value)
+      '()
+      (cons read-value (read-all port)))))
 
+(define mock-ctx
+  (context (environment '((a 0) (d 1)) (environment '((b 0) (c 1)) #f)) '() '()))
 
-                          ))
+(define mock-thunk `((asd a b c d) (display c) (newline)))
+(define mock-params '(x y z))
+
+(define empty-ctx (context (environment '() #f) '() '()))
+
+(define (evala)
+  (evaluate-thunk (read-all (open-input-file "c.scm")) empty-ctx))
+
