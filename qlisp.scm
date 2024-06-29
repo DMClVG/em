@@ -23,7 +23,7 @@
 (define (push-ir ctx op) (context-ops-set ctx (append op (list (context-ops ctx)))))
 
 (define (syntax-binary op a b ctx)
-  (evaluate-expr a (evaluate-expr b (push-ir ctx `(op)))))
+  (evaluate-expr a (pop-env-offset 1 (evaluate-expr b (push-env-offset (push-ir ctx `(,op)))))))
 
 (define (syntax-unary op expr ctx)
   (evaluate-expr expr (push-ir ctx `(,op))))
@@ -88,7 +88,7 @@
   (push-ir ctx `(import ,module)))
 
 (define (syntax-if condition iftrue iffalse ctx)
-  (evaluate-expr condition (context-ops-set ctx `(branch ,(evaluate-expr iftrue ctx) ,(evaluate-expr iffalse ctx)))))
+  (evaluate-expr condition (context-ops-set ctx `(branch ,(context-ops (evaluate-expr iftrue ctx)) ,(context-ops (evaluate-expr iffalse ctx))))))
 
 (define (syntax-quote x ctx)
   (push-ir ctx `(quote ,x)))
@@ -122,18 +122,20 @@
           (let ((f (first expr)))
             (case f
               ;; built-in calls
-              ((+ - * / >= <= > < equal? and or not)
+              ((+ - * / >= <= > < equal? and or not cons)
                (syntax-binary f (second expr) (third expr) ctx))
 
-              ((null? pair? procedure? boolean? number? symbol? display car cdr cons)
+              ((null? pair? procedure? boolean? number? symbol? display car cdr)
                (syntax-unary f (second expr) ctx))
         
               ((newline) (syntax-nullary f ctx))
 
               ;; special forms
-              ('define (syntax-define (second expr) (list-tail expr 2) ctx))
-              ('if (syntax-if (second expr) (third expr) (fourth expr) ctx))
-              ('lambda (syntax-lambda (second expr) (list-tail expr 2) ctx))
+              ((define) (syntax-define (second expr) (list-tail expr 2) ctx))
+              ((if) (syntax-if (second expr) (third expr) (fourth expr) ctx))
+              ((lambda) (syntax-lambda (second expr) (list-tail expr 2) ctx))
+              ((begin) (evaluate-thunk (rest expr) ctx))
+              ((import) (syntax-import (second expr) ctx))
 
               ;; calls
               (else (evaluate-call (first expr) (rest expr) ctx)))))

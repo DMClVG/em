@@ -31,7 +31,7 @@
 
 (define (padleft s char n)
   (string-append 
-    (list->string (repeat char (- n (length s)))) 
+    (list->string (repeat char (- n (string-length s)))) 
     s))
 
 (define (repeat x n)
@@ -75,7 +75,7 @@
 
             (else
               (let ((hexchar (number->hex c)))
-                (if (> (length hexchar) 4)
+                (if (> (string-length hexchar) 4)
                   (string-append "_U"(padleft hexchar #\0 8))
                   (string-append "_u"(padleft hexchar #\0 4))))))))
 
@@ -106,7 +106,7 @@
     ('and "q-and")
     ('or "q-or")
     ('not "q-not")
-    ('pair "q-pair")
+    ('cons "q-pair")
     ('car "q-car")
     ('cdr "q-cdr")
     ('display "q-display")
@@ -391,7 +391,6 @@
 
 
         ((branch)
-         (error "stfu")
          (let 
            ((iftrue (list-ref op 1))
             (iffalse (list-ref op 2)))
@@ -480,7 +479,7 @@
                 symbols2
                 quotes2)))))
 
-        ((+ - * / equal? pair car cdr display newline and or not boolean? null? pair? procedure? number? symbol? >= <= > <) ;; ops
+        ((+ - * / equal? cons car cdr display newline and or not boolean? null? pair? procedure? number? symbol? >= <= > <) ;; ops
          (next
            (list-ref op 1) ;; cont
            (cons (op-to-c-call (car op)) code)
@@ -682,4 +681,4 @@
              quotes
              paramcount)))
 
-        (else (error "bad operation"))))))
+        (else (error "bad operation" op))))))
