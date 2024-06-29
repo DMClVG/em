@@ -1,4 +1,6 @@
 *.o
+compiled/
+*~
 *.c
 a.fs
 b.fs

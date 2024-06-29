@@ -1,3 +1,4 @@
+(import b)
 
 (define (print x) (display x) (newline))
 
@@ -35,7 +36,7 @@
 
 (count 1 1000)
 
-;; (print (funny? 'adam))
+(print (funny? 'sandy))
 (print (factorial 19))
 
 (print (length '(a b c d e f g)))
@@ -44,4 +45,16 @@
 
 (define (const x) (lambda (_) x))
 
-(print ((const 'yaya) 12))
+
+(define (map f ls)
+
+  (define (map-tail f ls res)
+    (if (null? ls)
+      res
+      (map-tail f (cdr ls) (cons (f (car ls)) res))))
+
+ (reverse (map-tail f ls '())))
+
+(print (define x (map (const 'ayayaya) '(a b c d e f g h))))
+(print (length x))
+

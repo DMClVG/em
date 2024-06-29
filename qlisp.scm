@@ -43,7 +43,7 @@
 (define (evaluate-many exprs ctx)
   (let loop ((exprs exprs) (ctx ctx))
     (if (null? exprs) ctx
-    (evaluate-expr (first exprs) (pop-env-offset 1 (loop (rest exprs) (push-env-offset ctx)))))))
+        (evaluate-expr (first exprs) (pop-env-offset 1 (loop (rest exprs) (push-env-offset ctx)))))))
 
 (define (call-op argc) `(call ,argc))
 
@@ -54,24 +54,30 @@
    ))
 
 
+;;(define (fetch-free-vars free-binds ctx)
+;;  (foldr (lambda (free-var ctx) (fetch-name free-var ctx)) ctx free-binds)
+;;  )
+
 (define (fetch-free-vars free-binds ctx)
-  (foldr (lambda (free-var ctx) (fetch-name free-var ctx)) ctx free-binds)
-  )
+  (let loop ((binds free-binds) (ctx ctx))
+    (if (null? binds) ctx
+        (fetch-name (first binds) (pop-env-offset 1 (loop (rest binds) (push-env-offset ctx)))))))
+
 
 (define (evaluate-thunk thunk ctx)
   (if (null? thunk)
-    ctx
-    (evaluate-expr 
-      (first thunk)  
-      (if (pair? (rest thunk)) ; not at tail?
-        (push-ir (evaluate-thunk (rest thunk) ctx) `(drop))
-        (evaluate-thunk (cdr thunk) ctx)))))
+      ctx
+      (evaluate-expr 
+       (first thunk)  
+       (if (pair? (rest thunk)) ; not at tail?
+           (push-ir (evaluate-thunk (rest thunk) ctx) `(drop))
+           (evaluate-thunk (cdr thunk) ctx)))))
 
 (define (params->env params parent)
   (environment (let next-param ((params params) (res '()))
-    (if (pair? params)
-      (next-param (cdr params) (cons (list (car params) (length res)) res))
-      res)) parent))
+                 (if (pair? params)
+                     (next-param (cdr params) (cons (list (car params) (length res)) res))
+                     res)) parent))
 
 
 ;; (define (syntax-let bindings body env cont)
@@ -100,7 +106,7 @@
          (body-ctx (evaluate-thunk body (context body-env '() '())))
          (free-count (length (context-free-binds body-ctx))))
 
-    (fetch-free-vars (context-free-binds body-ctx)
+    (fetch-free-vars (reverse (context-free-binds body-ctx))
                      (push-ir
                       (context env (context-free-binds ctx) (context-ops ctx))
                       `(closure ,param-count ,free-count ,(context-ops body-ctx))))))
@@ -152,14 +158,14 @@
 (define (local-bind? bind env) (eq? (first bind) env) )  
 
 (define (insert-free bind ctx)
-  (context-free-binds-update ctx (lambda (frees) (cons (first (second bind)) frees))))
+  (context-free-binds-update ctx (compose dedupe (lambda (frees) (append frees (list (first (second bind))))))))
 
 (define (env-name name env ctx)
   (cond
     ((get-bound name env) =>
                           (lambda (bind) (if (local-bind? bind env)
                                              (push-ir ctx `(pick ,(second (second bind))))
-                                             (push-ir (insert-free bind ctx) `(up ,(length (context-free-binds ctx)))))))
+                                             (let ((new-ctx (insert-free bind ctx))) (push-ir new-ctx `(up ,(index-of (context-free-binds new-ctx) name) ,(second (first (environment-binds env)))))))))
     (else (push-ir ctx `(fetch ,name)))))
 
 (define (fetch-name x ctx)
@@ -180,8 +186,8 @@
 (define (read-all port)
   (let ((read-value (read port)))
     (if (eof-object? read-value)
-      '()
-      (cons read-value (read-all port)))))
+        '()
+        (cons read-value (read-all port)))))
 
 (define mock-ctx
   (context (environment '((a 0) (d 1)) (environment '((b 0) (c 1)) #f)) '() '()))
@@ -216,7 +222,7 @@
 (let ((args (vector->list (current-command-line-arguments))))
   (when (not (zero? (length args)))
     (apply cli args))
-    )
+  )
 
 ;;(call-with-input-file "a.scm"
 ;;  (lambda (p) (cli "--build" "a")))

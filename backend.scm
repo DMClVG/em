@@ -379,7 +379,7 @@
                    (string-append 
                      "['] "
                      (lambda->label (- (length lambdas2) 1))
-                     " q-lambda") 
+                     " " (number->string freecount2) " q-closure") 
                    code) 
                  lambdas2 
                  defines2
@@ -388,6 +388,22 @@
                  symbols2
                  quotes2
                  paramcount)))))
+
+        ((up) (let ((idx (second op)) (off (third op)) (cont (fourth op)))
+                (next 
+                 cont
+                 (cons 
+                   (string-append 
+                    (number->string idx) " " (number->string off) " q-upvalue")
+                     
+                   code) 
+                 lambdas  
+                 defines
+                 fetches
+                 imports
+                 symbols
+                 quotes
+                 paramcount)))
 
 
         ((branch)
@@ -428,7 +444,7 @@
              (values
                (cons 
                  (cons 
-                   "check-lambda r> drop execute" 
+                   "setup-closure r> drop execute" 
                    ;;"q-call-tail" 
                    (cons (string-append (number->string  (+ argcount 1))" "(number->string paramcount) " shove-back") code)) 
                  lambdas)
@@ -470,7 +486,7 @@
                   (cons 
                     (string-append (lambda->label (- (length lambdas2) 1)))
                     (cons
-                      (string-append (symbol->cidentifier module)"-toplevel")   
+                      (string-append "0 " (symbol->cidentifier module)"-toplevel")   
                       code))
                   lambdas2) 
                 defines2

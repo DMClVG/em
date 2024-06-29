@@ -1,5 +1,5 @@
 P=program
-SCRIPTS=a.fs
+SCRIPTS=a.fs b.fs
 SYMBOLS=symbols.fs
 DEPS=qruntime.fs
 
