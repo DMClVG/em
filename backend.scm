@@ -1,4 +1,33 @@
 #lang racket
+(provide to-c stitch-program dedupe)
+(provide stitch-symbol-constants)
+
+(define (delimited-list ls del)
+  (if (null? ls) 
+    '()
+    (if (null? (cdr ls)) 
+      (cons (car ls) '())
+      (cons (car ls) (cons del (delimited-list (cdr ls) del))))))
+
+(define (quote-to-c x symbols) ;; TODO: remove this
+  (cond
+    ((pair? x) 
+     (call-with-values
+       (lambda () 
+         (quote-to-c (car x) symbols))
+       (lambda (left symbols2) 
+         (call-with-values
+           (lambda () (quote-to-c (cdr x) symbols2))
+           (lambda (right symbols3)
+             (values 
+               (string-append "Q_PAIR(&((q_pair) { .head="left", .tail="right" }))")
+               symbols3))))))
+    ((null? x) (values "Q_NULL" symbols))
+    ((symbol? x) 
+     (values 
+       (string-append "Q_SYMBOL("(symbol->cdef x)")") 
+       (cons x symbols)))
+    (else (values "" symbols))))
 
 (define (padleft s char n)
   (string-append 
@@ -314,34 +343,6 @@
       symbols)
     "\n"))
 
-(define (read-stdin)
-  (read-string 1000000))
-
-(define (cli cmd module)
-  (cond
-    ((equal? cmd "--extract-symbols")
-     (call-with-values 
-      (lambda () (to-c (evaluate-thunk (read-stdin) '() '())))
-      (lambda (lambdas defines fetches imports symbols quotes)
-        (display (stitch-symbol-constants (dedupe symbols))))))
-
-    ((equal? cmd "--build")
-     (display (stitch-program module (to-c (evaluate-thunk (read-stdin) '() '())) #t)))
-    
-    ((equal? cmd "--build-tree")
-     (display (evaluate-thunk (read-stdin) '() '()))
-     (newline))))
-
-(let ((args (list-tail (command-line) 2)))
-  (when (not (zero? (length args)))
-    (apply cli args))
-    )
-
-
-
-
-
-
 (define (to-c ir)
   (let next ((op ir) (code '()) (lambdas '()) (defines '()) (fetches '()) (imports '()) (symbols '()) (quotes '()) (paramcount 0))
     (if (null? op) 
@@ -359,11 +360,12 @@
         
 
       (case (car op)
-        ((lambda closure) 
+        ((closure) 
          (let 
            ((paramcount2 (list-ref op 1))
-            (thunk (list-ref op 2))
-            (cont (list-ref op 3)))
+            (freecount2 (list-ref op 2))
+            (thunk (list-ref op 3))
+            (cont (list-ref op 4)))
 
            (call-with-values 
              (lambda () (next thunk '() lambdas defines fetches imports symbols quotes paramcount2))

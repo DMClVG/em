@@ -1,15 +1,15 @@
 P=program
-SCRIPTS=a.fs b.fs
+SCRIPTS=a.fs
 SYMBOLS=symbols.fs
 DEPS=qruntime.fs
 
 $(P): $(SCRIPTS) $(SYMBOLS)
 
 %.fs: %.scm qlisp.scm $(DEPS)
-	cat $< | ./repl qlisp.scm --build $(basename $@) > $@
+	cat $< | racket qlisp.scm --build $(basename $@) > $@
 
 symbols.fs: $(SCRIPTS)
-	cat $(SCRIPTS:.fs=.scm) | ./repl qlisp.scm --extract-symbols ee > $@
+	cat $(SCRIPTS:.fs=.scm) | racket qlisp.scm --extract-symbols ee > $@
 
 clean: 
 	rm -f $(SCRIPTS)

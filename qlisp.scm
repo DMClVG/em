@@ -192,3 +192,30 @@
 (define (evala)
   (evaluate-thunk (read-all (open-input-file "a.scm")) empty-ctx))
 
+
+(define (read-stdin)
+  (read-all (current-input-port)))
+
+(define (cli cmd module)
+  (cond
+    ((equal? cmd "--extract-symbols")
+     (call-with-values 
+      (lambda () (to-c (context-ops (evaluate-thunk (read-stdin) empty-ctx))))
+      (lambda (lambdas defines fetches imports symbols quotes)
+        (display (stitch-symbol-constants (dedupe symbols))))))
+
+    ((equal? cmd "--build")
+     (display (call-with-values (lambda () (to-c (context-ops (evaluate-thunk (read-stdin) empty-ctx)))) (lambda (lambdas defines fetches imports symbols quotes) (stitch-program module lambdas defines fetches imports symbols quotes #t)))))
+    
+    ((equal? cmd "--build-tree")
+     (display (context-ops (evaluate-thunk (read-stdin) empty-ctx)))
+     (newline))))
+
+(let ((args (vector->list (current-command-line-arguments))))
+  (when (not (zero? (length args)))
+    (apply cli args))
+    )
+
+;;(call-with-input-file "a.scm"
+;;  (lambda (p) (cli "--build" "a")))
+
