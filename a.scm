@@ -2,7 +2,7 @@
 (define (print x) (display x) (newline))
 
 (define (funnee a) 
-  'h)
+  '(h a h a))
 
 ;;(define (factorial n)
 ;; (if (equal? n 0)
@@ -40,4 +40,4 @@
 
 ;;(print (length '(a b c d e f g)))
 ;;(print (reverse '(a b c d e f g)))
-(print 1)
+(print (funnee 12))

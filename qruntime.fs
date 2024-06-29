@@ -25,8 +25,8 @@ rp@ constant rbase
 
 : q-symbol ( s # -- s tag )
   here 2 cells allot >r   
-  r@ 1 cells + !
   r@ 0 cells + !
+  r@ 1 cells + !
   r> Q-SYMBOL-T
 ;
 

@@ -359,10 +359,7 @@
         symbols
         quotes)
         
-      
-      (begin  (display op)
-              (newline)
-  (case (car op)
+      (case (car op)
   ;;  ('quote (error "nah"))
     
         ((closure) 
@@ -629,8 +626,23 @@
              paramcount)))
 
         ((quote)
-          
-          )
+          (let 
+            ((value (list-ref op 1))
+             (cont (list-ref op 2)))
+            (let 
+              ((quoted-value (call-with-values (lambda () (quote-to-c value symbols)) list)))
+              (next
+                  cont
+                  (cons 
+                     (string-append "qt-"(number->string (length quotes))" 2@") 
+                     code)
+                  lambdas
+                  defines
+                  fetches
+                  imports
+                  (list-ref quoted-value 1)
+                  (cons value quotes)
+                  paramcount))))
               
         ((free)
          (let 
@@ -670,4 +682,4 @@
              quotes
              paramcount)))
 
-        (else (error "bad operation")))))))
+        (else (error "bad operation"))))))
