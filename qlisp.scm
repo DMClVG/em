@@ -1,5 +1,6 @@
 #lang racket
 (require struct-update)
+(require "backend.scm")
 
 (define (todo)
   (error "todo"))
@@ -44,9 +45,6 @@
     (if (null? exprs) ctx
     (evaluate-expr (first exprs) (pop-env-offset 1 (loop (rest exprs) (push-env-offset ctx)))))))
 
-(define (syntax-quote x cont)
-  `(quote ,x ,cont))
-
 (define (call-op argc) `(call ,argc))
 
 (define (evaluate-call callee args ctx)
@@ -75,7 +73,27 @@
       (next-param (cdr params) (cons (list (car params) (length res)) res))
       res)) parent))
 
-(define (evaluate-lambda params body ctx)
+
+;; (define (syntax-let bindings body env cont)
+;;   (evaluate-many 
+;;     (map cadr bindings) 
+;;     env 
+;;     `(push-frame
+;;        ,(evaluate-thunk 
+;;           body 
+;;           (append-names-to-env env (map car bindings)) 
+;;           `(pop-frame ,(length bindings) ,cont)))))
+
+(define (syntax-import module ctx)
+  (push-ir ctx `(import ,module)))
+
+(define (syntax-if condition iftrue iffalse ctx)
+  (evaluate-expr condition (context-ops-set ctx `(branch ,(evaluate-expr iftrue ctx) ,(evaluate-expr iffalse ctx)))))
+
+(define (syntax-quote x ctx)
+  (push-ir ctx `(quote ,x)))
+
+(define (syntax-lambda params body ctx)
   (let* ((env (context-env ctx))
          (param-count (length params))
          (body-env (params->env (reverse params) env))
@@ -97,9 +115,9 @@
 
 (define (evaluate-expr expr ctx)
   (if (pair? expr)
-      (if (or #f (equal? (car expr) 'quote))
+      (if (or #f (equal? (first expr) 'quote))
           ;; quotes
-          (todo) 
+          (syntax-quote (second expr) ctx) 
 
           (let ((f (first expr)))
             (case f
@@ -112,9 +130,10 @@
         
               ((newline) (syntax-nullary f ctx))
 
+              ;; special forms
               ('define (syntax-define (second expr) (list-tail expr 2) ctx))
               ('if (syntax-if (second expr) (third expr) (fourth expr) ctx))
-              ('lambda (evaluate-lambda (second expr) (list-tail expr 2) ctx))
+              ('lambda (syntax-lambda (second expr) (list-tail expr 2) ctx))
 
               ;; calls
               (else (evaluate-call (first expr) (rest expr) ctx)))))
@@ -171,5 +190,5 @@
 (define empty-ctx (context (environment '() #f) '() '()))
 
 (define (evala)
-  (evaluate-thunk (read-all (open-input-file "c.scm")) empty-ctx))
+  (evaluate-thunk (read-all (open-input-file "a.scm")) empty-ctx))
 
