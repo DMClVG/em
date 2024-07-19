@@ -3,35 +3,35 @@
 (provide stitch-symbol-constants)
 
 (define (delimited-list ls del)
-  (if (null? ls) 
+  (if (null? ls)
     '()
-    (if (null? (cdr ls)) 
+    (if (null? (cdr ls))
       (cons (car ls) '())
       (cons (car ls) (cons del (delimited-list (cdr ls) del))))))
 
 (define (quote-to-c x symbols) ;; TODO: remove this
   (cond
-    ((pair? x) 
+    ((pair? x)
      (call-with-values
-       (lambda () 
+       (lambda ()
          (quote-to-c (car x) symbols))
-       (lambda (left symbols2) 
+       (lambda (left symbols2)
          (call-with-values
            (lambda () (quote-to-c (cdr x) symbols2))
            (lambda (right symbols3)
-             (values 
+             (values
                (string-append "Q_PAIR(&((q_pair) { .head="left", .tail="right" }))")
                symbols3))))))
     ((null? x) (values "Q_NULL" symbols))
-    ((symbol? x) 
-     (values 
-       (string-append "Q_SYMBOL("(symbol->cdef x)")") 
+    ((symbol? x)
+     (values
+       (string-append "Q_SYMBOL("(symbol->cdef x)")")
        (cons x symbols)))
     (else (values "" symbols))))
 
 (define (padleft s char n)
-  (string-append 
-    (list->string (repeat char (- n (string-length s)))) 
+  (string-append
+    (list->string (repeat char (- n (string-length s))))
     s))
 
 (define (repeat x n)
@@ -48,21 +48,21 @@
 
 (define (dedupe e)
   (if (null? e) '()
-      (cons (car e) (dedupe (filter (lambda (x) (not (equal? x (car e)))) 
+      (cons (car e) (dedupe (filter (lambda (x) (not (equal? x (car e))))
                                     (cdr e))))))
-(define (function-signature name) 
+(define (function-signature name)
   (string-append ": "name))
 
 (define (symbol->cidentifier sym)
   (string-join
-    (map 
+    (map
       (lambda (x)
         (let ((c (char->integer x)))
           (cond
             ((equal? 95 c)
              "__")
             ((or
-               (and 
+               (and
                  (>= c 65)
                  (<= c 90))
                (and
@@ -79,14 +79,14 @@
                   (string-append "_U"(padleft hexchar #\0 8))
                   (string-append "_u"(padleft hexchar #\0 4))))))))
 
-      (string->list (symbol->string sym))) 
+      (string->list (symbol->string sym)))
     ""))
 
 (define (number->hex n)
   (list->string
-    (reverse 
+    (reverse
       (let loop ((n n))
-        (cons 
+        (cons
           (list-ref '(#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9 #\A #\B #\C #\D #\E #\F) (modulo n 16))
           (if (equal? (floor (/ n 16)) 0)
             '()
@@ -102,7 +102,9 @@
     ('- "q-")
     ('* "q*")
     ('/ "q/")
-    ('equal? "q=")
+    ('equal? "q-equal?")
+    ('eq? "q-eq?")
+    ('= "q=")
     ('and "q-and")
     ('or "q-or")
     ('not "q-not")
@@ -110,7 +112,7 @@
     ('car "q-car")
     ('cdr "q-cdr")
     ('display "q-display")
-    ('newline "newline type q-null")
+    ('newline "q-newline")
     ('boolean? "q-boolean?")
     ('null? "q-null?")
     ('procedure? "q-procedure?")
@@ -123,7 +125,7 @@
     ('>= "q>=")))
 
 (define (stitch-lambda module id l)
-  (string-append 
+  (string-append
     (function-signature (lambda->label id))"\n"
     (string-join (reverse l) "\n")
     " ;"))
@@ -135,14 +137,14 @@
           '()
            (cons (stitch-lambda module id (car lambdas)) (loop (cdr lambdas) (+ 1 id)))))
     "\n\n"))
-          
+
 
 (define (stitch-defines defines)
   (string-join
     (let loop ((ls defines))
        (if (null? ls)
         '()
-        (cons (string-append "2variable "  (define->cdefine (car ls))) (loop (cdr ls)))))
+        (cons (string-append "variable "  (define->cdefine (car ls))) (loop (cdr ls)))))
     "\n"))
 
 
@@ -151,8 +153,8 @@
     (let loop ((ls imports))
        (if (null? ls)
         '()
-        (cons 
-          (string-append "") 
+        (cons
+          (string-append "")
           (loop (cdr ls)))))
     "\n"))
 
@@ -176,10 +178,10 @@
 
 (define (top-level-function-signature module)
   (function-signature (string-append module"-toplevel")))
-  
+
 (define (stitch-symbols symbols)
   (string-join
-    (map 
+    (map
       (lambda (sym)
         "")
       symbols)
@@ -191,20 +193,20 @@
     (let loop ((quotes quotes) (n 0))
       (if (null? quotes)
         '()
-        (cons 
-         (string-append "2variable qt-"(number->string n))
+        (cons
+         (string-append "variable qt-"(number->string n))
          (loop
            (cdr quotes)
            (+ n 1)))))
     "\n"))
 
 (define (quote-init n id qt ls)
-  (cond 
-    ((pair? qt) 
-     (call-with-values 
+  (cond
+    ((pair? qt)
+     (call-with-values
        (lambda () (quote-init n id (car qt) ls))
        (lambda (ls2 n2)
-         (call-with-values 
+         (call-with-values
            (lambda () (quote-init n2 id (cdr qt) ls2))
            (lambda (ls3 n3)
              (values
@@ -213,34 +215,34 @@
                  (list
                    (string-append "q-pair")
                    ))
-                 
+
                (+ 1 n3)))))))
 
     ((symbol? qt)
-     (values 
+     (values
        (append
          ls
-         (list 
+         (list
           (string-append (symbol->cdef qt))))
-         
+
        (+ n 1)))
     ((number? qt)
-     (values 
-       (append 
+     (values
+       (append
          ls
-         (list (string-append (number->string qt) " q-num")))
-         
+         (list (string-append (number->string qt) " q-number")))
+
        (+ n 1)))
     ((null? qt)
-     (values 
-       (append 
+     (values
+       (append
          ls
          (list "q-null"))
-         
+
        (+ n 1)))
     ((boolean? qt)
-     (values 
-         (append 
+     (values
+         (append
            ls
            (list
              (string-append (if qt "true q-bool" "false q-bool"))))
@@ -248,17 +250,17 @@
     (else (error "quote not supported"))))
 
 (define (initialize-quote id qt ls)
-  (call-with-values 
+  (call-with-values
     (lambda ()
       (quote-init
         0
         id
         qt
-        '())) 
+        '()))
     (lambda (ls n)
-      (append 
+      (append
         ls
-        (list (string-append id " 2!"))))))
+        (list (string-append id " !"))))))
 
 (define (stitch-quotes-initialization quotes)
   (string-join
@@ -266,8 +268,8 @@
       (if (null? quotes)
         '()
          (cons
-          (string-join 
-            (initialize-quote 
+          (string-join
+            (initialize-quote
               (string-append "qt-"(number->string n))
               (car quotes)
               '())
@@ -276,7 +278,7 @@
     "\n"))
 
 (define (stitch-program module lambdas defines fetches imports symbols quotes debug?)
-  (string-join 
+  (string-join
     `(
       ;; ,(if debug? (string-append ": rl postpone include " module ".fs ;"))
       "\\ defines"
@@ -298,18 +300,18 @@
       ,(stitch-lambdas module lambdas)
       ""
       "\\ toplevel"
-      ,(string-append (top-level-function-signature module) "") 
+      ,(string-append (top-level-function-signature module) "")
       ,(stitch-quotes-initialization quotes)
       ,(string-append (lambda->label (- (length lambdas) 1)) " ;")
       )
     "\n"))
 
-;;(begin 
+;;(begin
 ;;  "tests"
-;;  (trace 
-;;    (syntax-lambda 
-;;      '(a b c) 
-;;      '((print (+ (+ a c) b)) 
+;;  (trace
+;;    (syntax-lambda
+;;      '(a b c)
+;;      '((print (+ (+ a c) b))
 ;;        (print 0))
 ;;      '())
 ;;
@@ -337,51 +339,51 @@
 
 (define (stitch-symbol-constants symbols)
   (string-join
-    (map 
+    (map
       (lambda (sym)
-        (string-append "s\" "(symbol->string sym)"\" q-symbol 2constant "(symbol->cdef sym)))
+        (string-append "s\" "(symbol->string sym)"\" q-symbol constant "(symbol->cdef sym)))
       symbols)
     "\n"))
 
 (define (to-c ir)
 
   (let next ((op ir) (code '()) (lambdas '()) (defines '()) (fetches '()) (imports '()) (symbols '()) (quotes '()) (paramcount 0))
-    (if (null? op) 
-      (values 
-        (cons 
-          (cons 
+    (if (null? op)
+      (values
+        (cons
+          (cons
             (string-append "1 " (number->string paramcount)" shove-back")   ;; copy result to the top of parent's stackframe
-            code) 
-          lambdas) 
-        defines 
-        fetches      
+            code)
+          lambdas)
+        defines
+        fetches
         imports
         symbols
         quotes)
-        
+
       (case (car op)
   ;;  ('quote (error "nah"))
-    
-        ((closure) 
-         (let 
+
+        ((closure)
+         (let
            ((paramcount2 (list-ref op 1))
             (freecount2 (list-ref op 2))
             (thunk (list-ref op 3))
             (cont (list-ref op 4)))
 
-           (call-with-values 
+           (call-with-values
              (lambda () (next thunk '() lambdas defines fetches imports symbols quotes paramcount2))
 
              (lambda (lambdas2 defines2 fetches2 imports2 symbols2 quotes2)
-               (next 
+               (next
                  cont
-                 (cons 
-                   (string-append 
+                 (cons
+                   (string-append
                      "['] "
                      (lambda->label (- (length lambdas2) 1))
-                     " " (number->string freecount2) " q-closure") 
-                   code) 
-                 lambdas2 
+                     " " (number->string freecount2) " q-closure")
+                   code)
+                 lambdas2
                  defines2
                  fetches2
                  imports2
@@ -390,14 +392,14 @@
                  paramcount)))))
 
         ((up) (let ((idx (second op)) (off (third op)) (cont (fourth op)))
-                (next 
+                (next
                  cont
-                 (cons 
-                   (string-append 
+                 (cons
+                   (string-append
                     (number->string idx) " " (number->string off) " q-upvalue")
-                     
-                   code) 
-                 lambdas  
+
+                   code)
+                 lambdas
                  defines
                  fetches
                  imports
@@ -407,27 +409,27 @@
 
 
         ((branch)
-         (let 
+         (let
            ((iftrue (list-ref op 1))
             (iffalse (list-ref op 2)))
 
-           (call-with-values 
+           (call-with-values
              (lambda () (next iftrue '() lambdas defines fetches imports symbols quotes paramcount))
 
              (lambda (lambdas2 defines2 fetches2 imports2 symbols2 quotes2)
-               (call-with-values 
+               (call-with-values
                  (lambda () (next iffalse '() lambdas2 defines2 fetches2 imports2 symbols2 quotes2 paramcount))
 
                  (lambda (lambdas3 defines3 fetches3 imports3 symbols3 quotes3)
                    (values
-                     (cons (cons 
-                             (string-append 
-                               "q? r> drop if " 
+                     (cons (cons
+                             (string-append
+                               "q? r> drop if "
                                (lambda->label (- (length lambdas2) 1)) ; if true
                                " else "
                                (lambda->label (- (length lambdas3) 1)) ; if false
-                               " then") 
-                             code) lambdas3) 
+                               " then")
+                             code) lambdas3)
                      defines3
                      fetches3
                      imports3
@@ -435,37 +437,37 @@
                      quotes3)))))))
 
         ((call)
-         (let 
+         (let
            ((argcount (list-ref op 1))
             (cont (list-ref op 2)))
 
            (if (null? cont) ;; at tail position?
               ;;#f
              (values
-               (cons 
-                 (cons 
-                   "setup-closure r> drop execute" 
-                   ;;"q-call-tail" 
-                   (cons (string-append (number->string  (+ argcount 1))" "(number->string paramcount) " shove-back") code)) 
+               (cons
+                 (cons
+                   "setup-closure r> drop execute"
+                   ;;"q-call-tail"
+                   (cons (string-append (number->string  (+ argcount 1))" "(number->string paramcount) " shove-back") code))
                  lambdas)
                defines
                fetches
                imports
                symbols
                quotes)
-             
-             (call-with-values 
+
+             (call-with-values
                (lambda () (next cont '() lambdas defines fetches imports symbols quotes paramcount))
 
                (lambda (lambdas2 defines2 fetches2 imports2 symbols2 quotes2)
-                 (values 
-                   (cons 
+                 (values
+                   (cons
                      (cons
-                       (string-append (lambda->label (- (length lambdas2) 1))) 
-                        (cons 
-                       "q-call" 
+                       (string-append (lambda->label (- (length lambdas2) 1)))
+                        (cons
+                       "q-call"
                           code))
-                     lambdas2) 
+                     lambdas2)
                    defines2
                    fetches2
                    imports2
@@ -473,29 +475,29 @@
                    quotes2))))))
 
         ((import)
-         (let 
+         (let
            ((module (list-ref op 1))
             (cont (list-ref op 2)))
 
-           (call-with-values 
+           (call-with-values
             (lambda () (next cont '() lambdas defines fetches imports symbols quotes paramcount))
 
             (lambda (lambdas2 defines2 fetches2 imports2 symbols2 quotes2)
-              (values 
-                (cons 
-                  (cons 
+              (values
+                (cons
+                  (cons
                     (string-append (lambda->label (- (length lambdas2) 1)))
                     (cons
-                      (string-append "0 " (symbol->cidentifier module)"-toplevel")   
+                      (string-append "0 " (symbol->cidentifier module)"-toplevel")
                       code))
-                  lambdas2) 
+                  lambdas2)
                 defines2
                 fetches2
                 (cons (string-append (symbol->cidentifier module) "-toplevel") imports2)
                 symbols2
                 quotes2)))))
 
-        ((+ - * / equal? cons car cdr display newline and or not boolean? null? pair? procedure? number? symbol? >= <= > <) ;; ops
+        ((+ - * / = eq? equal? cons car cdr display newline and or not boolean? null? pair? procedure? number? symbol? >= <= > <) ;; ops
          (next
            (list-ref op 1) ;; cont
            (cons (op-to-c-call (car op)) code)
@@ -508,14 +510,14 @@
            paramcount))
 
         ((native)
-         (let 
+         (let
            ((name (list-ref op 1))
             (cont (list-ref op 2)))
 
            (next
              (list-ref op 2) ;; cont
-             (cons 
-               (string-append "q_make_lambda(q, "name");") 
+             (cons
+               (string-append "q_make_lambda(q, "name");")
                code)
              lambdas
              defines
@@ -525,15 +527,15 @@
              quotes
              paramcount)))
 
-        ((define) 
-         (let 
+        ((define)
+         (let
            ((name (list-ref op 1))
             (cont (list-ref op 2)))
 
-           (next 
-             cont 
-             (cons (string-append "2dup " (define->cdefine name) " 2!") code)
-             lambdas 
+           (next
+             cont
+             (cons (string-append "dup " (define->cdefine name) " !") code)
+             lambdas
              (cons name defines)
              fetches
              imports
@@ -547,7 +549,7 @@
             (cont (list-ref op 2)))
            (next
              cont
-             (cons (string-append (number->string (list-ref op 1)) " q-num") code)
+             (cons (string-append (number->string (list-ref op 1)) " q-number") code)
              lambdas
              defines
              fetches
@@ -555,17 +557,17 @@
              symbols
              quotes
              paramcount)))
-             
+
         ((boolean)
          (let
            ((x (list-ref op 1))
             (cont (list-ref op 2)))
            (next
              cont
-             (cons 
-               (string-append 
-                 (if x 
-                   "true q-bool" 
+             (cons
+               (string-append
+                 (if x
+                   "true q-bool"
                    "false q-bool"))
                code)
              lambdas
@@ -577,13 +579,13 @@
              paramcount)))
 
         ((fetch)
-         (let 
+         (let
             ((name (list-ref op 1))
              (cont (list-ref op 2)))
            (next
              cont
-             (cons 
-               (string-append (define->cdefine name) " 2@")
+             (cons
+               (string-append (define->cdefine name) " @")
                code)
              lambdas
              defines
@@ -594,12 +596,12 @@
              paramcount)))
 
         ((drop)
-         (let 
+         (let
            ((cont (list-ref op 1)))
            (next
              cont
-             (cons 
-               "q-drop"
+             (cons
+               "drop"
                code)
              lambdas
              defines
@@ -610,7 +612,7 @@
              paramcount)))
 
         ((push-frame)
-         (let 
+         (let
            ((cont (list-ref op 1)))
            (next
              cont
@@ -624,12 +626,12 @@
              paramcount)))
 
         ((pop-frame)
-         (let 
+         (let
            ((n (list-ref op 1))
             (cont (list-ref op 2)))
            (next
              cont
-             (cons 
+             (cons
                (string-append "1 "(number->string n)" shove-back")
                code)
              lambdas
@@ -641,15 +643,15 @@
              paramcount)))
 
         ((quote)
-          (let 
+          (let
             ((value (list-ref op 1))
              (cont (list-ref op 2)))
-            (let 
+            (let
               ((quoted-value (call-with-values (lambda () (quote-to-c value symbols)) list)))
               (next
                   cont
-                  (cons 
-                     (string-append "qt-"(number->string (length quotes))" 2@") 
+                  (cons
+                     (string-append "qt-"(number->string (length quotes))" @")
                      code)
                   lambdas
                   defines
@@ -658,19 +660,19 @@
                   (list-ref quoted-value 1)
                   (cons value quotes)
                   paramcount))))
-              
+
         ((free)
-         (let 
+         (let
            ((n (list-ref op 1))
             (cont (list-ref op 2)))
           (next
             cont
-            (cons 
+            (cons
               "Q_STORE(q, 0, temp);"
               (cons
-                "Q_PUSH(q, 1);" 
-                (cons 
-                  (string-append "Q_ENV(q, " (number->string n) ", &temp);") 
+                "Q_PUSH(q, 1);"
+                (cons
+                  (string-append "Q_ENV(q, " (number->string n) ", &temp);")
                   code)))
             lambdas
             defines
@@ -681,13 +683,13 @@
             paramcount)))
 
         ((pick)
-         (let 
+         (let
             ((n (list-ref op 1))
              (cont (list-ref op 2)))
            (next
              cont
-             (cons 
-               (string-append (number->string n) " q-pick") 
+             (cons
+               (string-append (number->string n) " q-pick")
                    code)
              lambdas
              defines

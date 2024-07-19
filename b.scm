@@ -1,4 +1,4 @@
-;;(define (funnee a) 
+;;(define (funnee a)
 ;;  '(h a h a)
 ;;
 ;;(define (factorial n)
@@ -7,4 +7,4 @@
 ;;    (* (factorial (- n 1)) n)))
 
 (define (funny? name)
-  (equal? name 'sandy))
+  (eq? name 'sandy))

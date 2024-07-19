@@ -6,7 +6,7 @@
   (error "todo"))
 
 (define (trace . vals)
-  (for-each 
+  (for-each
    (lambda (x)
      (display x)
      (newline))
@@ -67,8 +67,8 @@
 (define (evaluate-thunk thunk ctx)
   (if (null? thunk)
       ctx
-      (evaluate-expr 
-       (first thunk)  
+      (evaluate-expr
+       (first thunk)
        (if (pair? (rest thunk)) ; not at tail?
            (push-ir (evaluate-thunk (rest thunk) ctx) `(drop))
            (evaluate-thunk (cdr thunk) ctx)))))
@@ -81,13 +81,13 @@
 
 
 ;; (define (syntax-let bindings body env cont)
-;;   (evaluate-many 
-;;     (map cadr bindings) 
-;;     env 
+;;   (evaluate-many
+;;     (map cadr bindings)
+;;     env
 ;;     `(push-frame
-;;        ,(evaluate-thunk 
-;;           body 
-;;           (append-names-to-env env (map car bindings)) 
+;;        ,(evaluate-thunk
+;;           body
+;;           (append-names-to-env env (map car bindings))
 ;;           `(pop-frame ,(length bindings) ,cont)))))
 
 (define (syntax-import module ctx)
@@ -123,17 +123,17 @@
   (if (pair? expr)
       (if (or #f (equal? (first expr) 'quote))
           ;; quotes
-          (syntax-quote (second expr) ctx) 
+          (syntax-quote (second expr) ctx)
 
           (let ((f (first expr)))
             (case f
               ;; built-in calls
-              ((+ - * / >= <= > < equal? and or not cons)
+              ((+ - * / >= <= > < = eq? equal? and or not cons)
                (syntax-binary f (second expr) (third expr) ctx))
 
               ((null? pair? procedure? boolean? number? symbol? display car cdr)
                (syntax-unary f (second expr) ctx))
-        
+
               ((newline) (syntax-nullary f ctx))
 
               ;; special forms
@@ -155,7 +155,7 @@
     ((assoc name (environment-binds env)) => (lambda (n) `(,env ,n)))
     (else (get-bound name (environment-parent env)))))
 
-(define (local-bind? bind env) (eq? (first bind) env) )  
+(define (local-bind? bind env) (eq? (first bind) env) )
 
 (define (insert-free bind ctx)
   (context-free-binds-update ctx (compose dedupe (lambda (frees) (append frees (list (first (second bind))))))))
@@ -173,13 +173,13 @@
 
 (define (leaf-expr x ctx)
   (cond
-    ((number? x) 
+    ((number? x)
      (push-ir ctx `(number ,x)))
-    ((boolean? x) 
+    ((boolean? x)
      (push-ir ctx `(boolean ,x)))
-    ((symbol? x) 
+    ((symbol? x)
      (fetch-name x ctx))
-    (else 
+    (else
      (error "bad expression " x))))
 
 
@@ -207,14 +207,14 @@
 (define (cli cmd module)
   (cond
     ((equal? cmd "--extract-symbols")
-     (call-with-values 
+     (call-with-values
       (lambda () (to-c (context-ops (evaluate-thunk (read-stdin) empty-ctx))))
       (lambda (lambdas defines fetches imports symbols quotes)
         (display (stitch-symbol-constants (dedupe symbols))))))
 
     ((equal? cmd "--build")
      (display (call-with-values (lambda () (to-c (context-ops (evaluate-thunk (read-stdin) empty-ctx)))) (lambda (lambdas defines fetches imports symbols quotes) (stitch-program module lambdas defines fetches imports symbols quotes #t)))))
-    
+
     ((equal? cmd "--build-tree")
      (display (context-ops (evaluate-thunk (read-stdin) empty-ctx)))
      (newline))))
@@ -226,4 +226,3 @@
 
 ;;(call-with-input-file "a.scm"
 ;;  (lambda (p) (cli "--build" "a")))
-
