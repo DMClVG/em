@@ -165,6 +165,8 @@ then
 : display-null drop ." ()" ;
 : display-bool if ." #t" else ." #f" then ;
 
+: display-lambda drop ." <lambda>" ;
+
 : display
 q-unbox
 case
@@ -173,6 +175,7 @@ Q-NUMBER-T of display-num endof
 Q-NULL-T of display-null endof
 Q-SYMBOL-T of display-symbol endof
 Q-BOOL-T of display-bool endof
+Q-LAMBDA-T of display-lambda endof
 endcase
 ;
 
