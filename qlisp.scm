@@ -105,6 +105,7 @@
          (body-env (params->env (reverse params) env))
          (body-ctx (evaluate-thunk body (context body-env '() '())))
          (free-count (length (context-free-binds body-ctx))))
+    (trace body-env)
 
     (fetch-free-vars (reverse (context-free-binds body-ctx))
                      (push-ir
@@ -160,12 +161,18 @@
 (define (insert-free bind ctx)
   (context-free-binds-update ctx (compose dedupe (lambda (frees) (append frees (list (first (second bind))))))))
 
+(define (env-name-found-free name bind env ctx)
+  (let ((new-ctx (insert-free bind ctx)))
+    (push-ir new-ctx `(up ,(index-of (context-free-binds new-ctx) name) ,(second (first (environment-binds env)))))))
+
+(define (env-name-found name bind env ctx)
+  (if (local-bind? bind env)
+      (push-ir ctx `(pick ,(second (second bind))))
+      (env-name-found-free name bind env ctx)))
+
 (define (env-name name env ctx)
   (cond
-    ((get-bound name env) =>
-                          (lambda (bind) (if (local-bind? bind env)
-                                             (push-ir ctx `(pick ,(second (second bind))))
-                                             (let ((new-ctx (insert-free bind ctx))) (push-ir new-ctx `(up ,(index-of (context-free-binds new-ctx) name) ,(second (first (environment-binds env)))))))))
+    ((get-bound name env) => (λ (bind) (env-name-found name bind env ctx)))
     (else (push-ir ctx `(fetch ,name)))))
 
 (define (fetch-name x ctx)
@@ -218,6 +225,9 @@
     ((equal? cmd "--build-tree")
      (display (context-ops (evaluate-thunk (read-stdin) empty-ctx)))
      (newline))))
+
+(define (eval-file path)
+  (context-ops (evaluate-thunk (read-all (open-input-file path)) empty-ctx)))
 
 (let ((args (vector->list (current-command-line-arguments))))
   (when (not (zero? (length args)))

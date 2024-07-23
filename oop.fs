@@ -13,15 +13,12 @@ variable d-person
 
 
 
-
-
 \ quotes
 variable qt-0
 variable qt-1
 variable qt-2
 variable qt-3
 variable qt-4
-variable qt-5
 
 \ lambdas
 : f-0
@@ -29,70 +26,54 @@ variable qt-5
 1 1 shove-back ;
 
 : f-1
-0 0 q-upvalue
+qt-1 @
 1 1 shove-back ;
 
 : f-2
-0 0 q-upvalue
-1 1 shove-back ;
-
-: f-3
-false q-bool
-1 1 shove-back ;
-
-: f-4
-0 q-pick
-qt-2 @
-q-eq?
-q? r> drop if f-2 else f-3 then ;
-
-: f-5
-0 q-pick
-qt-1 @
-q-eq?
-q? r> drop if f-1 else f-4 then ;
-
-: f-6
 0 q-pick
 qt-0 @
 q-eq?
-q? r> drop if f-0 else f-5 then ;
+q? r> drop if f-0 else f-1 then ;
 
-: f-7
-['] f-6 0 q-closure
+: f-3
+['] f-2 0 q-closure
 1 3 shove-back ;
 
-: f-8
+: f-4
+q-display
+drop
+q-newline
+1 0 shove-back ;
+
+: f-5
 dup d-john !
 drop
-qt-5 @
+qt-4 @
 d-john @
-2 0 shove-back
-setup-closure r> drop execute ;
+q-call
+f-4 ;
 
-: f-9
-['] f-7 0 q-closure
+: f-6
+['] f-3 0 q-closure
 dup d-person !
 drop
-qt-3 @
+qt-2 @
 23 q-number
-qt-4 @
+qt-3 @
 d-person @
 q-call
-f-8 ;
+f-5 ;
 
 \ toplevel
 : oop-toplevel
 s-name
-qt-5 !
-s-joyful
 qt-4 !
-s-john
+s-joyful
 qt-3 !
-s-personality
+s-john
 qt-2 !
-s-age
+q-null
 qt-1 !
 s-name
 qt-0 !
-f-9 ;
+f-6 ;
