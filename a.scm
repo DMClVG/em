@@ -1,6 +1,8 @@
 (import b)
 
-(define (print x) (display x) (newline))
+(define (print x)
+  (display x)
+  (newline))
 
 (define (funny a)
   '(h a h a))
@@ -35,10 +37,4 @@
       '()))
 
 
-(count 1 100)
-
-(print (factorial 19))
-
-(define alist '(a b c d e f g))
-(print (length '(a b c d e f g)))
-(print (reverse '(a b c d e f g)))
+(print (length '(a b c)))

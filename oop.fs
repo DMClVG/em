@@ -1,5 +1,6 @@
 \ defines
 variable d-person
+: person d-person @ check-lambda execute ;
 
 \ extern
 

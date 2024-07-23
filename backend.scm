@@ -359,7 +359,6 @@
         quotes)
 
       (case (car op)
-  ;;  ('quote (error "nah"))
 
         ((closure)
          (let
@@ -387,23 +386,6 @@
                  symbols2
                  quotes2
                  paramcount)))))
-
-        ((up) (let ((idx (second op)) (off (third op)) (cont (fourth op)))
-                (next
-                 cont
-                 (cons
-                   (string-append
-                    (number->string idx) " " (number->string off) " q-upvalue")
-
-                   code)
-                 lambdas
-                 defines
-                 fetches
-                 imports
-                 symbols
-                 quotes
-                 paramcount)))
-
 
         ((branch)
          (let
@@ -443,8 +425,10 @@
              (values
                (cons
                  (cons
-                   "check-lambda execute"
-                   (cons (string-append (number->string  (+ argcount 1))" "(number->string paramcount) " shove-back") code))
+                   ""
+                   (cons
+		    (string-append (number->string argcount)" "(number->string paramcount) " shove-back")
+		    code))
                  lambdas)
                defines
                fetches
@@ -460,9 +444,7 @@
                    (cons
                      (cons
                        (string-append (lambda->label (- (length lambdas2) 1)))
-                        (cons
-                       "check-lambda execute"
-                          code))
+                        code)
                      lambdas2)
                    defines2
                    fetches2
@@ -581,7 +563,7 @@
            (next
              cont
              (cons
-               (string-append (define->cdefine name) " @")
+               (string-append (symbol->string name))
                code)
              lambdas
              defines
