@@ -34,25 +34,11 @@
         (count (+ start 1) end))
       '()))
 
-(count 1 1000)
 
-(print (funny? 'sandy))
+(count 1 100)
+
 (print (factorial 19))
 
+(define alist '(a b c d e f g))
 (print (length '(a b c d e f g)))
 (print (reverse '(a b c d e f g)))
-
-(define (const x) (lambda (_) x))
-
-(define (map f ls)
-
-  (define (map-tail f ls res)
-    (if (null? ls)
-      res
-      (map-tail f (cdr ls) (cons (f (car ls)) res))))
-
- (reverse (map-tail f ls '())))
-
-
-(print (define x (map (const 'ayayaya) '(a b c d e f g h))))
-(print (length x))

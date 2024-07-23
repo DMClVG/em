@@ -1,6 +1,7 @@
 #lang racket
 (provide to-c stitch-program dedupe)
 (provide stitch-symbol-constants)
+(require "utils.scm")
 
 (define (delimited-list ls del)
   (if (null? ls)
@@ -46,10 +47,6 @@
 (define (string-join ls del)
   (apply string-append (delimited-list ls del)))
 
-(define (dedupe e)
-  (if (null? e) '()
-      (cons (car e) (dedupe (filter (lambda (x) (not (equal? x (car e))))
-                                    (cdr e))))))
 (define (function-signature name)
   (string-append ": "name))
 
@@ -144,7 +141,7 @@
     (let loop ((ls defines))
        (if (null? ls)
         '()
-        (cons (string-append "variable "  (define->cdefine (car ls))) (loop (cdr ls)))))
+        (cons (string-append "variable "  (define->cdefine (car ls)) "\n: " (symbol->string (car ls)) " " (define->cdefine (car ls)) " @ check-lambda execute ;") (loop (cdr ls)))))
     "\n"))
 
 
@@ -381,7 +378,7 @@
                    (string-append
                      "['] "
                      (lambda->label (- (length lambdas2) 1))
-                     " " (number->string freecount2) " q-closure")
+                     " q-lambda")
                    code)
                  lambdas2
                  defines2
@@ -424,7 +421,7 @@
                    (values
                      (cons (cons
                              (string-append
-                               "q? r> drop if "
+                               "q? if "
                                (lambda->label (- (length lambdas2) 1)) ; if true
                                " else "
                                (lambda->label (- (length lambdas3) 1)) ; if false
@@ -446,8 +443,7 @@
              (values
                (cons
                  (cons
-                   "setup-closure r> drop execute"
-                   ;;"q-call-tail"
+                   "check-lambda execute"
                    (cons (string-append (number->string  (+ argcount 1))" "(number->string paramcount) " shove-back") code))
                  lambdas)
                defines
@@ -465,7 +461,7 @@
                      (cons
                        (string-append (lambda->label (- (length lambdas2) 1)))
                         (cons
-                       "q-call"
+                       "check-lambda execute"
                           code))
                      lambdas2)
                    defines2
@@ -488,7 +484,7 @@
                   (cons
                     (string-append (lambda->label (- (length lambdas2) 1)))
                     (cons
-                      (string-append "0 " (symbol->cidentifier module)"-toplevel")
+                      (string-append (symbol->cidentifier module)"-toplevel")
                       code))
                   lambdas2)
                 defines2
@@ -689,7 +685,7 @@
            (next
              cont
              (cons
-               (string-append (number->string n) " q-pick")
+               (string-append (number->string n) " pick")
                    code)
              lambdas
              defines

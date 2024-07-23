@@ -1,29 +1,22 @@
 #lang racket
 (require struct-update)
 (require "backend.scm")
+(require "env.scm")
+(require "context.scm")
+(require "utils.scm")
 
-(define (todo)
-  (error "todo"))
+(struct bind (name index))
 
-(define (trace . vals)
-  (for-each
-   (lambda (x)
-     (display x)
-     (newline))
-   vals)
-  (first vals))
-
-(struct context (env free-binds ops) #:transparent)
-(define-struct-updaters context)
-
-(struct environment (binds parent) #:transparent)
-(define-struct-updaters environment)
 
 ;;(define (append-ir ctx ir) '())
-(define (push-ir ctx op) (context-ops-set ctx (append op (list (context-ops ctx)))))
 
 (define (syntax-binary op a b ctx)
-  (evaluate-expr a (pop-env-offset 1 (evaluate-expr b (push-env-offset (push-ir ctx `(,op)))))))
+  (evaluate-expr
+   a
+
+   (pop-env-offset
+    1
+    (evaluate-expr b (push-env-offset (push-ir ctx `(,op)))))))
 
 (define (syntax-unary op expr ctx)
   (evaluate-expr expr (push-ir ctx `(,op))))
@@ -54,16 +47,6 @@
    ))
 
 
-;;(define (fetch-free-vars free-binds ctx)
-;;  (foldr (lambda (free-var ctx) (fetch-name free-var ctx)) ctx free-binds)
-;;  )
-
-(define (fetch-free-vars free-binds ctx)
-  (let loop ((binds free-binds) (ctx ctx))
-    (if (null? binds) ctx
-        (fetch-name (first binds) (pop-env-offset 1 (loop (rest binds) (push-env-offset ctx)))))))
-
-
 (define (evaluate-thunk thunk ctx)
   (if (null? thunk)
       ctx
@@ -72,12 +55,6 @@
        (if (pair? (rest thunk)) ; not at tail?
            (push-ir (evaluate-thunk (rest thunk) ctx) `(drop))
            (evaluate-thunk (cdr thunk) ctx)))))
-
-(define (params->env params parent)
-  (environment (let next-param ((params params) (res '()))
-                 (if (pair? params)
-                     (next-param (cdr params) (cons (list (car params) (length res)) res))
-                     res)) parent))
 
 
 ;; (define (syntax-let bindings body env cont)
@@ -94,7 +71,14 @@
   (push-ir ctx `(import ,module)))
 
 (define (syntax-if condition iftrue iffalse ctx)
-  (evaluate-expr condition (context-ops-set ctx `(branch ,(context-ops (evaluate-expr iftrue ctx)) ,(context-ops (evaluate-expr iffalse ctx))))))
+  (evaluate-expr
+   condition
+
+   (context-ops-set
+    ctx
+    `(branch
+      ,(context-ops (evaluate-expr iftrue ctx))
+      ,(context-ops (evaluate-expr iffalse ctx))))))
 
 (define (syntax-quote x ctx)
   (push-ir ctx `(quote ,x)))
@@ -103,14 +87,10 @@
   (let* ((env (context-env ctx))
          (param-count (length params))
          (body-env (params->env (reverse params) env))
-         (body-ctx (evaluate-thunk body (context body-env '() '())))
-         (free-count (length (context-free-binds body-ctx))))
-    (trace body-env)
-
-    (fetch-free-vars (reverse (context-free-binds body-ctx))
-                     (push-ir
-                      (context env (context-free-binds ctx) (context-ops ctx))
-                      `(closure ,param-count ,free-count ,(context-ops body-ctx))))))
+         (body-ctx (evaluate-thunk body (context body-env '() '()))))
+    (push-ir
+     (context env (context-free-binds ctx) (context-ops ctx))
+     `(closure ,param-count 0 ,(context-ops body-ctx)))))
 
 (define (do-define name value ctx)
   (evaluate-expr value (push-ir ctx `(define ,name))))
@@ -149,31 +129,6 @@
 
       ;; immediates/variables
       (leaf-expr expr ctx)))
-
-(define (get-bound name env)
-  (cond
-    ((eq? env #f) #f)
-    ((assoc name (environment-binds env)) => (lambda (n) `(,env ,n)))
-    (else (get-bound name (environment-parent env)))))
-
-(define (local-bind? bind env) (eq? (first bind) env) )
-
-(define (insert-free bind ctx)
-  (context-free-binds-update ctx (compose dedupe (lambda (frees) (append frees (list (first (second bind))))))))
-
-(define (env-name-found-free name bind env ctx)
-  (let ((new-ctx (insert-free bind ctx)))
-    (push-ir new-ctx `(up ,(index-of (context-free-binds new-ctx) name) ,(second (first (environment-binds env)))))))
-
-(define (env-name-found name bind env ctx)
-  (if (local-bind? bind env)
-      (push-ir ctx `(pick ,(second (second bind))))
-      (env-name-found-free name bind env ctx)))
-
-(define (env-name name env ctx)
-  (cond
-    ((get-bound name env) => (λ (bind) (env-name-found name bind env ctx)))
-    (else (push-ir ctx `(fetch ,name)))))
 
 (define (fetch-name x ctx)
   (env-name x (context-env ctx) ctx))

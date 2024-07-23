@@ -6,7 +6,6 @@
 4 constant Q-SYMBOL-T
 5 constant Q-LAMBDA-T
 6 constant Q-BOOL-T
-7 constant Q-CLOSURE-T
 
 rp@ constant rbase
 
@@ -26,30 +25,8 @@ rp@ constant rbase
   Q-LAMBDA-T q-value
 ;
 
-
-\ : closure-allot closure-size cells allot ;
-\ : closure-upvalue ( c n ) 1+ cells + @ ;
-: closure-xt ( c ) @ ;
-: closure-upvalues cell + ;
-: q-upvalue ( idx delta -- up )
-  1 + pick swap cells + @ ;
-
 variable closure-ptr
 variable closure-size-cells
-
-: q-closure ( qqq f n -- c tag )
-  here >r
-  1+ cells dup closure-size-cells !
-  allot r> closure-ptr !
-
-  sp@
-  closure-ptr @
-  closure-size-cells @
-  move
-
-  sp@ closure-size-cells @ + sp!
-  closure-ptr @ Q-CLOSURE-T q-value
-;
 
 : q-bool Q-BOOL-T q-value ;
 
@@ -72,21 +49,10 @@ variable closure-size-cells
 : check-pair q-unbox Q-PAIR-T <> if ." is not a pair!" abort then ;
 : check-num q-unbox Q-NUMBER-T <> if ." is not a number!" abort then ;
 : check-bool q-unbox Q-BOOL-T <> if ." is not a boolean!" abort then ;
-: check-lambda q-unbox Q-CLOSURE-T <> if ." is not a lambda!" abort then ;
-
-
-: setup-closure
-  check-lambda
-  dup closure-xt >r
-  closure-upvalues r>
-  ;
+: check-lambda q-unbox Q-LAMBDA-T <> if ." is not a lambda!" abort then ;
 
 : car @ ;
 : cdr cell + @ ;
-
-: q-drop drop ;
-: q-pick 1+ pick ; \ skip upvalue pointer
-: q-call setup-closure execute ;
 
 : setup-2num ( a b -- n m )
 check-num >r check-num r> ;
@@ -131,13 +97,13 @@ variable stackp
   sp@ stackp !
 
   stackp @ \ src
-  stackp @ paramnum @ + cell + \ dest
+  stackp @ paramnum @ + \ dest
   argnum @
   move
 ;
 
 : update-stack-pointer
-  stackp @ paramnum @ + cell + sp! \ update pointer
+  stackp @ paramnum @ + sp! \ update pointer
 ;
 
 : shove-back ( n d -- ) \ for tail call
