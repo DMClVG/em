@@ -1,11 +1,11 @@
 P=program
 SCRIPTS=a.fs b.fs oop.fs
 SYMBOLS=symbols.fs
-DEPS=qruntime.fs
+DEPS=qlisp.scm backend.scm env.scm
 
 $(P): $(SCRIPTS) $(SYMBOLS)
 
-%.fs: %.scm qlisp.scm $(DEPS)
+%.fs: %.scm $(DEPS)
 	cat $< | racket qlisp.scm --build $(basename $@) > $@
 
 symbols.fs: $(SCRIPTS)

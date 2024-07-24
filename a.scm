@@ -1,4 +1,6 @@
-(import b)
+;;(import b)
+
+;; (define timer (object 2))
 
 (define (print x)
   (display x)
