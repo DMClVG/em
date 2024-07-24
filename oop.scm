@@ -12,11 +12,15 @@
   (object (cons name (cons age (cons personality '()))) person-behavior))
 
 
-(define john (person 'john 23 'joyful))
+(define john (person 'john 23 "(¬_¬)ﾉ"))
 
-(display (john 'name))
-(newline)
-(display (john 'age))
-(newline)
-(display (john 'personality))
-(newline)
+(define (info about)
+  (display "Name: ")
+  (display (john 'name))
+  (newline)
+  (display "Age: ")
+  (display (about 'age))
+  (newline)
+  (display "Personality: ")
+  (display (about 'personality))
+  (newline))

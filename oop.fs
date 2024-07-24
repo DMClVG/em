@@ -1,4 +1,6 @@
 \ defines
+variable d-info
+: info d-info @ ;
 variable d-john
 : john d-john @ ;
 variable d-person
@@ -18,7 +20,6 @@ variable d-person_u002Dbehavior
 
 
 
-
 \ quotes
 variable qt-0
 variable qt-1
@@ -30,6 +31,9 @@ variable qt-6
 variable qt-7
 variable qt-8
 variable qt-9
+variable qt-10
+variable qt-11
+variable qt-12
 
 \ lambdas
 : f-0
@@ -92,15 +96,18 @@ check-lambda execute ;
 q-display
 drop
 q-newline
-1 0 shove-back ;
+1 1 shove-back ;
 
 : f-9
 q-display
 drop
 q-newline
 drop
-qt-9 @
-john
+qt-11 @
+q-display
+drop
+qt-12 @
+1 pick
 check-lambda execute
 f-8 ;
 
@@ -109,20 +116,31 @@ q-display
 drop
 q-newline
 drop
-qt-8 @
-john
+qt-9 @
+q-display
+drop
+qt-10 @
+1 pick
 check-lambda execute
 f-9 ;
 
 : f-11
-dup d-john !
-drop
 qt-7 @
+q-display
+drop
+qt-8 @
 john
 check-lambda execute
 f-10 ;
 
 : f-12
+dup d-john !
+drop
+['] f-11 q-lambda
+dup d-info !
+1 0 shove-back ;
+
+: f-13
 ['] f-7 q-lambda
 dup d-person !
 drop
@@ -131,17 +149,23 @@ qt-5 @
 qt-6 @
 person
 check-lambda execute
-f-11 ;
+f-12 ;
 
 \ toplevel
 : oop-toplevel
 s-personality
-qt-9 !
+qt-12 !
+s" Personality: " q-string
+qt-11 !
 s-age
-qt-8 !
+qt-10 !
+s" Age: " q-string
+qt-9 !
 s-name
+qt-8 !
+s" Name: " q-string
 qt-7 !
-s-joyful
+s" (¬_¬)ﾉ" q-string
 qt-6 !
 s-john
 qt-5 !
@@ -155,4 +179,4 @@ s-age
 qt-1 !
 s-name
 qt-0 !
-f-12 ;
+f-13 ;

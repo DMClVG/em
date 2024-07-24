@@ -223,13 +223,21 @@
           (string-append (symbol->cdef qt))))
 
        (+ n 1)))
+
+    ((string? qt)
+     (values
+      (append
+       ls
+       (list (string-append "s\" " qt "\" q-string")))
+
+      (+ n 1)))
     ((number? qt)
      (values
-       (append
-         ls
-         (list (string-append (number->string qt) " q-number")))
+      (append
+       ls
+       (list (string-append (number->string qt) " q-number")))
 
-       (+ n 1)))
+      (+ n 1)))
     ((null? qt)
      (values
        (append

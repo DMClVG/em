@@ -141,6 +141,8 @@
      (push-ir ctx `(boolean ,x)))
     ((symbol? x)
      (fetch-name x ctx))
+    ((string? x)
+     (syntax-quote x ctx))
     (else
      (error "bad expression " x))))
 

@@ -7,6 +7,7 @@
 5 constant Q-LAMBDA-T
 6 constant Q-BOOL-T
 7 constant Q-OBJECT-T
+8 constant Q-STRING-T
 
 rp@ constant rbase
 
@@ -25,6 +26,12 @@ rp@ constant rbase
 : q-lambda ( f -- value )
   Q-LAMBDA-T q-value
 ;
+: q-string ( s # -- value )
+  here 2 cells allot >r
+  r@ 0 cells + !
+  r@ 1 cells + !
+  r> Q-STRING-T q-value
+  ;
 
 : q-bool Q-BOOL-T q-value ;
 
@@ -48,6 +55,7 @@ rp@ constant rbase
 : check-num q-unbox Q-NUMBER-T <> if ." is not a number!" abort then ;
 : check-bool q-unbox Q-BOOL-T <> if ." is not a boolean!" abort then ;
 : check-lambda q-unbox Q-LAMBDA-T <> if ." is not a lambda!" abort then ;
+: check-string q-unbox Q-STRING-T <> if ." is not a string!" abort then ;
 
 : car @ ;
 : cdr cell + @ ;
@@ -126,6 +134,7 @@ then
 
 : display-num 0 <# #s #> type ;
 : display-symbol symbol-string type ;
+: display-string symbol-string type ;
 : display-null drop ." ()" ;
 : display-bool if ." #t" else ." #f" then ;
 
@@ -140,6 +149,7 @@ Q-NULL-T of display-null endof
 Q-SYMBOL-T of display-symbol endof
 Q-BOOL-T of display-bool endof
 Q-LAMBDA-T of display-lambda endof
+Q-STRING-T of display-string endof
 endcase
 ;
 
