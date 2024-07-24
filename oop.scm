@@ -1,4 +1,3 @@
-
 (define (person name age personality)
 
   (define (person-behavior msg self)
@@ -9,7 +8,10 @@
             (if (eq? msg 'personality)
                 (car (cdr (cdr self)))
                 '()))))
-  (object (cons name (cons age (cons personality '()))) person-behavior))
+
+  (object
+   (cons name (cons age (cons personality '())))
+   person-behavior))
 
 
 (define john (person 'john 23 "(¬_¬)ﾉ"))

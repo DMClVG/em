@@ -6,7 +6,6 @@
 4 constant Q-SYMBOL-T
 5 constant Q-LAMBDA-T
 6 constant Q-BOOL-T
-7 constant Q-OBJECT-T
 8 constant Q-STRING-T
 
 rp@ constant rbase
@@ -162,27 +161,8 @@ endcase
 
 : q-dbg dup q-unbox swap . . ;
 
-
-
-
 variable object-f
 variable object-d
-variable #object-slots
-variable object-slots
-
-defer wut
-
-: allot-slots here #object-slots @ cells allot ;
-
-: create-self ( n -- self )
-  noname
-  create
-  cells allot
-  does>
-  swap cells + @
- ;
-
-: make-self create-self latestxt ;
 
 : make-object
   noname create
