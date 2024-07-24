@@ -1,6 +1,19 @@
 ;;(import b)
 
-;; (define timer (object 2))
+(define (hello x)
+  (display 'hello-my-dear)
+  (display x)
+  (newline))
+(define (const x)
+  (define (const-function _ self)
+    self)
+  (object x const-function))
+
+(define (compose f g)
+  (define (compose-function x self)
+    ((car self) ((car (cdr self)) x)))
+
+  (object (cons f (cons g '())) compose-function))
 
 (define (print x)
   (display x)
@@ -40,3 +53,11 @@
 
 
 (print (length '(a b c)))
+
+(print (compose (lambda (x) (+ x 2)) (lambda (x) (* x 5))))
+
+;;(print ((const 43) 3213))
+
+;;(print ((const 8) 12))
+
+;;(print ((compose 12 321) 11))

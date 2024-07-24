@@ -141,7 +141,7 @@
     (let loop ((ls defines))
        (if (null? ls)
         '()
-        (cons (string-append "variable "  (define->cdefine (car ls)) "\n: " (symbol->string (car ls)) " " (define->cdefine (car ls)) " @ q-data ;") (loop (cdr ls)))))
+        (cons (string-append "variable "  (define->cdefine (car ls)) "\n: " (symbol->string (car ls)) " " (define->cdefine (car ls)) " @ ;") (loop (cdr ls)))))
     "\n"))
 
 
@@ -425,7 +425,7 @@
              (values
                (cons
                  (cons
-                   "execute"
+                   "check-lambda execute"
                    (cons
 		    (string-append (number->string (+ 1 argcount))" "(number->string paramcount) " shove-back")
 		    code))
@@ -445,7 +445,7 @@
                      (cons
                       (string-append (lambda->label (- (length lambdas2) 1)))
 		      (cons
-		       "execute"
+		       "check-lambda execute"
                        code))
                      lambdas2)
                    defines2

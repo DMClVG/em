@@ -6,6 +6,7 @@
 4 constant Q-SYMBOL-T
 5 constant Q-LAMBDA-T
 6 constant Q-BOOL-T
+7 constant Q-OBJECT-T
 
 rp@ constant rbase
 
@@ -21,12 +22,9 @@ rp@ constant rbase
 
 : q-number Q-NUMBER-T q-value ;
 : q-null 0 Q-NULL-T q-value ;
-: q-lambda ( f -- l tag )
+: q-lambda ( f -- value )
   Q-LAMBDA-T q-value
 ;
-
-variable closure-ptr
-variable closure-size-cells
 
 : q-bool Q-BOOL-T q-value ;
 
@@ -131,7 +129,7 @@ then
 : display-null drop ." ()" ;
 : display-bool if ." #t" else ." #f" then ;
 
-: display-lambda drop ." <lambda>" ;
+: display-lambda drop ." <procedure>" ;
 
 : display
 q-unbox
@@ -153,3 +151,45 @@ endcase
 : q-cdr check-pair cdr ;
 
 : q-dbg dup q-unbox swap . . ;
+
+
+
+
+variable object-f
+variable object-d
+variable #object-slots
+variable object-slots
+
+defer wut
+
+: allot-slots here #object-slots @ cells allot ;
+
+: create-self ( n -- self )
+  noname
+  create
+  cells allot
+  does>
+  swap cells + @
+ ;
+
+: make-self create-self latestxt ;
+
+: make-object
+  noname create
+  object-f @ ,
+  object-d @ ,
+
+  does>
+  2@ execute
+;
+
+: q-object ( d f -- value )
+  check-lambda object-f !
+  object-d !
+
+  make-object
+  latestxt
+  q-lambda
+;
+
+: object ['] q-object q-lambda ;
