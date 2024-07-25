@@ -1,17 +1,17 @@
 \ defines
-variable d-melissa
+variable d-melissa d-melissa root-address 
 : melissa d-melissa @ ;
-variable d-john
+variable d-john d-john root-address 
 : john d-john @ ;
-variable d-person
+variable d-person d-person root-address 
 : person d-person @ ;
-variable d-person_u002Dbehavior
+variable d-person_u002Dbehavior d-person_u002Dbehavior root-address 
 : person-behavior d-person_u002Dbehavior @ ;
-variable d-inc_u0021
+variable d-inc_u0021 d-inc_u0021 root-address 
 : inc! d-inc_u0021 @ ;
-variable d-people_u002Dcount
+variable d-people_u002Dcount d-people_u002Dcount root-address 
 : people-count d-people_u002Dcount @ ;
-variable d-info
+variable d-info d-info root-address 
 : info d-info @ ;
 
 \ quotes

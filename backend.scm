@@ -128,7 +128,7 @@
     (let loop ((ls defines))
        (if (null? ls)
         '()
-        (cons (string-append "variable "  (define->cdefine (car ls)) "\n: " (symbol->string (car ls)) " " (define->cdefine (car ls)) " @ ;") (loop (cdr ls)))))
+        (cons (string-append "variable "  (define->cdefine (car ls)) " " (define->cdefine (car ls)) " root-address \n: " (symbol->string (car ls)) " " (define->cdefine (car ls)) " @ ;") (loop (cdr ls)))))
     "\n"))
 
 

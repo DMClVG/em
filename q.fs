@@ -1,4 +1,4 @@
-\ 64 1024 * 1024 * true false s" gc.fs" included drop 2drop
+64 1024 * 1024 * true false s" gc.fs" included drop 2drop
 
 include qruntime.fs
 include symbols.fs

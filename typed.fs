@@ -1,35 +1,35 @@
 \ defines
-variable d-tdisplay
+variable d-tdisplay d-tdisplay root-address 
 : tdisplay d-tdisplay @ ;
-variable d-tstring
+variable d-tstring d-tstring root-address 
 : tstring d-tstring @ ;
-variable d-tnull
+variable d-tnull d-tnull root-address 
 : tnull d-tnull @ ;
-variable d-tbool
+variable d-tbool d-tbool root-address 
 : tbool d-tbool @ ;
-variable d-tcons
+variable d-tcons d-tcons root-address 
 : tcons d-tcons @ ;
-variable d-tnumber
+variable d-tnumber d-tnumber root-address 
 : tnumber d-tnumber @ ;
-variable d-bool_u002D_u003Estring
+variable d-bool_u002D_u003Estring d-bool_u002D_u003Estring root-address 
 : bool->string d-bool_u002D_u003Estring @ ;
-variable d-display_u002Da_u002Dlist
+variable d-display_u002Da_u002Dlist d-display_u002Da_u002Dlist root-address 
 : display-a-list d-display_u002Da_u002Dlist @ ;
-variable d-cons_u003F
+variable d-cons_u003F d-cons_u003F root-address 
 : cons? d-cons_u003F @ ;
-variable d-string_u003F
+variable d-string_u003F d-string_u003F root-address 
 : string? d-string_u003F @ ;
-variable d-number_u003F
+variable d-number_u003F d-number_u003F root-address 
 : number? d-number_u003F @ ;
-variable d-boolean_u003F
+variable d-boolean_u003F d-boolean_u003F root-address 
 : boolean? d-boolean_u003F @ ;
-variable d-null_u003F
+variable d-null_u003F d-null_u003F root-address 
 : null? d-null_u003F @ ;
-variable d-datum_u003F
+variable d-datum_u003F d-datum_u003F root-address 
 : datum? d-datum_u003F @ ;
-variable d-type_u003F
+variable d-type_u003F d-type_u003F root-address 
 : type? d-type_u003F @ ;
-variable d-typed
+variable d-typed d-typed root-address 
 : typed d-typed @ ;
 
 \ quotes
