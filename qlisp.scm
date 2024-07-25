@@ -108,14 +108,13 @@
 
           (let ((f (first expr)))
             (case f
-              ;; built-in calls
-              ((+ - * / >= <= > < = eq? equal? and or not cons)
+              ;; built-in binary calls
+              ((+ - * / >= <= > < = and or)
                (syntax-binary f (second expr) (third expr) ctx))
 
-              ((null? pair? procedure? boolean? number? symbol? display car cdr)
+              ;; built-in unary calls
+              ((not)
                (syntax-unary f (second expr) ctx))
-
-              ((newline) (syntax-nullary f ctx))
 
               ;; special forms
               ((define) (syntax-define (second expr) (list-tail expr 2) ctx))

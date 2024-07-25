@@ -99,21 +99,14 @@
     ('- "-")
     ('* "*")
     ('/ "/")
-    ('equal? "q-equal?")
-    ('eq? "q-eq?")
     ('= "=")
-    ('and "and")
-    ('or "or")
-    ('not "not")
-    ('cons "q-pair")
-    ('car "q-car")
-    ('cdr "q-cdr")
-    ('display "q-display")
-    ('newline "q-newline")
     ('< "<")
     ('> ">")
     ('<= "<=")
-    ('>= ">=")))
+    ('>= ">=")
+    ('and "and")
+    ('or "or")
+    ('not "0=")))
 
 (define (stitch-lambda module id l)
   (string-append
@@ -204,7 +197,7 @@
                (append
                  ls3
                  (list
-                   (string-append "q-pair")
+                   (string-append "q-cons")
                    ))
 
                (+ 1 n3)))))))
@@ -282,15 +275,6 @@
       ;; ,(if debug? (string-append ": rl postpone include " module ".fs ;"))
       "\\ defines"
       ,(stitch-defines (dedupe defines))
-      ""
-      "\\ extern"
-      ,(stitch-extern-defines (difference (dedupe fetches) defines))
-      ""
-      "\\ imports"
-      ,(stitch-imports (dedupe imports))
-      ""
-      "\\ symbols"
-      ,(stitch-symbols (dedupe symbols))
       ""
       "\\ quotes"
       ,(stitch-quotes-definitions quotes)
@@ -378,8 +362,7 @@
                  (cons
                    (string-append
                      "['] "
-                     (lambda->label (- (length lambdas2) 1))
-                     " q-lambda")
+                     (lambda->label (- (length lambdas2) 1)))
                    code)
                  lambdas2
                  defines2
@@ -479,7 +462,7 @@
                 symbols2
                 quotes2)))))
 
-        ((+ - * / = eq? equal? cons car cdr display newline and or not >= <= > <) ;; ops
+        ((+ - * / = >= <= > < and or not) ;; ops
          (next
            (list-ref op 1) ;; cont
            (cons (op-to-c-call (car op)) code)
@@ -531,7 +514,7 @@
             (cont (list-ref op 2)))
            (next
              cont
-             (cons (string-append (number->string (list-ref op 1)) " q-number") code)
+             (cons (string-append (number->string (list-ref op 1))) code)
              lambdas
              defines
              fetches

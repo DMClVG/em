@@ -1,62 +1,39 @@
-\ include debug.fs
+\ Q runtime environment
 
-rp@ constant rbase
+0 constant q-null
 
+: q-string ( s # -- st ) 2, here 2 cells - ;
+: q-symbol ( s # -- sy ) 2, here 2 cells - ;
+: q-cons ( a b -- cons ) 2, here 2 cells - ;
+
+: q-create-object
+  noname create 2,
+  does> 2@ execute
+;
+: q-object ( d f -- value )
+  q-create-object
+  latestxt
+;
+
+: q-car cell + @ ;
+: q-cdr @ ;
+
+\ predefined
 :noname , here cell - ; constant box
-
 :noname swap ! 0 ; constant set!
 :noname @ ; constant ref
+:noname 0 <# #s #> q-string ; constant number->string
+:noname 2@ type q-null ; constant display
+:noname newline type q-null ; constant newline
+:noname = ; constant eq?
+' q-cons constant cons
+' q-car constant car
+' q-cdr constant cdr
+' q-object constant object
+' noop constant identity
+' noop constant symbol->string
 
-: rdepth rbase rp@ - ;
-
-: q-number ;
-: q-null 0 ;
-: q-lambda ( f -- value )
-;
-: q-string ( s # -- value )
-  here 2 cells allot >r
-  r@ 0 cells + !
-  r@ 1 cells + !
-  r>
-  ;
-
-: q-bool ;
-
-: q-symbol ( s # -- s tag )
-  here 2 cells allot >r
-  r@ 0 cells + !
-  r@ 1 cells + !
-  r>
-;
-
-: q-pair ( a b -- p )
-  here 2 cells allot >r
-  r@ 1 cells + !
-  r@ 0 cells + !
-  r>
-;
-
-: symbol-string 2@ ;
-
-: car @ ;
-: cdr cell + @ ;
-
-: q+ + ;
-: q- - ;
-: q* * ;
-: q/ / ;
-: q< < ;
-: q> > ;
-: q>= >= ;
-: q<= <= ;
-: q= = ;
-
-: q-eq? = ;
-
-: q-and and ;
-: q-or or ;
-: q-not 0<> ;
-
+\ stack trickery
 variable argnum
 variable paramnum
 variable stackp
@@ -76,38 +53,8 @@ variable stackp
   stackp @ paramnum @ + sp! \ update pointer
 ;
 
-: shove-back ( n d -- ) \ for tail call
+: shove-back ( n d -- )
+\ for moving back n values by d cells on stack
   reorder-stack
   update-stack-pointer
 ;
-
-:noname 0 <# #s #> q-string ; constant number->string
-
-: q-display symbol-string type 0 ;
-: q-newline newline type 0 ;
-: q-car car ;
-: q-cdr cdr ;
-
-: q-dbg dup . ;
-
-variable object-f
-variable object-d
-
-: make-object
-  noname create
-  object-f @ ,
-  object-d @ ,
-
-  does>
-  2@ execute
-;
-
-: q-object ( d f -- value )
-  object-f !
-  object-d !
-
-  make-object
-  latestxt
-;
-
-: object ['] q-object ;

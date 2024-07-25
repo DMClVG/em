@@ -14,22 +14,6 @@ variable d-people_u002Dcount
 variable d-info
 : info d-info @ ;
 
-\ extern
-
-
-
-
-
-
-\ imports
-
-
-\ symbols
-
-
-
-
-
 \ quotes
 variable qt-0
 variable qt-1
@@ -50,184 +34,260 @@ variable qt-15
 
 \ lambdas
 : f-0
-q-display
 drop
-q-newline
-1 1 shove-back ;
+newline
+1 1 shove-back
+execute ;
 
 : f-1
-q-display
-drop
-q-newline
-drop
-qt-4 @
-q-display
-drop
-qt-5 @
-1 pick
+display
 execute
 f-0 ;
 
 : f-2
-number->string
+drop
+qt-5 @
+1 pick
 execute
 f-1 ;
 
 : f-3
-q-display
 drop
-q-newline
-drop
-qt-2 @
-q-display
-drop
-qt-3 @
-1 pick
+qt-4 @
+display
 execute
 f-2 ;
 
 : f-4
-qt-0 @
-q-display
 drop
-qt-1 @
-1 pick
+newline
 execute
 f-3 ;
 
 : f-5
+display
+execute
+f-4 ;
+
+: f-6
+number->string
+execute
+f-5 ;
+
+: f-7
+drop
+qt-3 @
+1 pick
+execute
+f-6 ;
+
+: f-8
+drop
+qt-2 @
+display
+execute
+f-7 ;
+
+: f-9
+drop
+newline
+execute
+f-8 ;
+
+: f-10
+display
+execute
+f-9 ;
+
+: f-11
+drop
+qt-1 @
+1 pick
+execute
+f-10 ;
+
+: f-12
+qt-0 @
+display
+execute
+f-11 ;
+
+: f-13
 +
 set!
 3 1 shove-back
 execute ;
 
-: f-6
+: f-14
 0 pick
-1 q-number
+1
 2 pick
 ref
 execute
-f-5 ;
+f-13 ;
 
-: f-7
+: f-15
 0 pick
-q-car
-1 2 shove-back ;
+car
+2 2 shove-back
+execute ;
 
-: f-8
+: f-16
+car
+2 2 shove-back
+execute ;
+
+: f-17
 0 pick
-q-cdr
-q-car
-1 2 shove-back ;
+cdr
+execute
+f-16 ;
 
-: f-9
+: f-18
+car
+2 2 shove-back
+execute ;
+
+: f-19
+cdr
+execute
+f-18 ;
+
+: f-20
 0 pick
-q-cdr
-q-cdr
-q-car
-1 2 shove-back ;
+cdr
+execute
+f-19 ;
 
-: f-10
+: f-21
 info
 2 2 shove-back
 execute ;
 
-: f-11
+: f-22
 0 pick
 person-behavior
 object
 execute
-f-10 ;
+f-21 ;
 
-: f-12
+: f-23
 qt-10 @
 1 2 shove-back ;
 
-: f-13
+: f-24
+if f-22 else f-23 then ;
+
+: f-25
 1 pick
 qt-9 @
-q-eq?
-if f-11 else f-12 then ;
+eq?
+execute
+f-24 ;
 
-: f-14
+: f-26
+if f-20 else f-25 then ;
+
+: f-27
 1 pick
 qt-8 @
-q-eq?
-if f-9 else f-13 then ;
+eq?
+execute
+f-26 ;
 
-: f-15
+: f-28
+if f-17 else f-27 then ;
+
+: f-29
 1 pick
 qt-7 @
-q-eq?
-if f-8 else f-14 then ;
+eq?
+execute
+f-28 ;
 
-: f-16
+: f-30
+if f-15 else f-29 then ;
+
+: f-31
 1 pick
 qt-6 @
-q-eq?
-if f-7 else f-15 then ;
+eq?
+execute
+f-30 ;
 
-: f-17
+: f-32
+person-behavior
+object
+3 3 shove-back
+execute ;
+
+: f-33
+cons
+execute
+f-32 ;
+
+: f-34
+cons
+execute
+f-33 ;
+
+: f-35
 drop
-['] f-16 q-lambda
+['] f-31
 dup d-person_u002Dbehavior !
 drop
 2 pick
 2 pick
 2 pick
 qt-11 @
-q-pair
-q-pair
-q-pair
-person-behavior
-object
-3 3 shove-back
-execute ;
+cons
+execute
+f-34 ;
 
-: f-18
+: f-36
 people-count
 inc!
 execute
-f-17 ;
+f-35 ;
 
-: f-19
+: f-37
 dup d-melissa !
 1 0 shove-back ;
 
-: f-20
+: f-38
 dup d-john !
 drop
 qt-14 @
-27 q-number
+27
 qt-15 @
 person
 execute
-f-19 ;
+f-37 ;
 
-: f-21
+: f-39
 dup d-people_u002Dcount !
 drop
-['] f-6 q-lambda
+['] f-14
 dup d-inc_u0021 !
 drop
-['] f-18 q-lambda
+['] f-36
 dup d-person !
 drop
 qt-12 @
-23 q-number
+23
 qt-13 @
 person
 execute
-f-20 ;
+f-38 ;
 
-: f-22
-['] f-4 q-lambda
+: f-40
+['] f-12
 dup d-info !
 drop
-0 q-number
+0
 box
 execute
-f-21 ;
+f-39 ;
 
 \ toplevel
 : oop-toplevel
@@ -263,4 +323,4 @@ s-name
 qt-1 !
 s" Name: " q-string
 qt-0 !
-f-22 ;
+f-40 ;
