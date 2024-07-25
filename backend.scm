@@ -95,31 +95,25 @@
 
 (define (op-to-c-call op)
   (case op
-    ('+ "q+")
-    ('- "q-")
-    ('* "q*")
-    ('/ "q/")
+    ('+ "+")
+    ('- "-")
+    ('* "*")
+    ('/ "/")
     ('equal? "q-equal?")
     ('eq? "q-eq?")
-    ('= "q=")
-    ('and "q-and")
-    ('or "q-or")
-    ('not "q-not")
+    ('= "=")
+    ('and "and")
+    ('or "or")
+    ('not "not")
     ('cons "q-pair")
     ('car "q-car")
     ('cdr "q-cdr")
     ('display "q-display")
     ('newline "q-newline")
-    ('boolean? "q-boolean?")
-    ('null? "q-null?")
-    ('procedure? "q-procedure?")
-    ('pair? "q-pair?")
-    ('number? "q-number?")
-    ('symbol? "q-symbol?")
-    ('< "q<")
-    ('> "q>")
-    ('<= "q<=")
-    ('>= "q>=")))
+    ('< "<")
+    ('> ">")
+    ('<= "<=")
+    ('>= ">=")))
 
 (define (stitch-lambda module id l)
   (string-append
@@ -411,7 +405,7 @@
                    (values
                      (cons (cons
                              (string-append
-                               "q? if "
+                               "if "
                                (lambda->label (- (length lambdas2) 1)) ; if true
                                " else "
                                (lambda->label (- (length lambdas3) 1)) ; if false
@@ -433,7 +427,7 @@
              (values
                (cons
                  (cons
-                   "check-lambda execute"
+                   "execute"
                    (cons
 		    (string-append (number->string (+ 1 argcount))" "(number->string paramcount) " shove-back")
 		    code))
@@ -453,7 +447,7 @@
                      (cons
                       (string-append (lambda->label (- (length lambdas2) 1)))
 		      (cons
-		       "check-lambda execute"
+		       "execute"
                        code))
                      lambdas2)
                    defines2
