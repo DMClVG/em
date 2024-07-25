@@ -9,7 +9,13 @@
   (display (about 'personality))
   (newline))
 
+(define people-count (box 0))
+
+(define (inc! box)
+  (set! box (+ 1 (ref box))))
+
 (define (person name age personality)
+  (inc! people-count)
 
   (define (person-behavior msg self)
     (if (eq? msg 'name)
@@ -25,7 +31,6 @@
   (object
    (cons name (cons age (cons personality '())))
    person-behavior))
-
 
 (define john (person "John" 23 "(¬_¬)ﾉ"))
 (define melissa (person "Melissa" 27 "ヾ(@^▽^@)ノ"))

@@ -7,10 +7,17 @@ variable d-person
 : person d-person @ ;
 variable d-person_u002Dbehavior
 : person-behavior d-person_u002Dbehavior @ ;
+variable d-inc_u0021
+: inc! d-inc_u0021 @ ;
+variable d-people_u002Dcount
+: people-count d-people_u002Dcount @ ;
 variable d-info
 : info d-info @ ;
 
 \ extern
+
+
+
 
 
 
@@ -89,65 +96,80 @@ execute
 f-3 ;
 
 : f-5
-0 pick
-q-car
-1 2 shove-back ;
++
+set!
+3 1 shove-back
+execute ;
 
 : f-6
 0 pick
-q-cdr
-q-car
-1 2 shove-back ;
+1 q-number
+2 pick
+ref
+execute
+f-5 ;
 
 : f-7
 0 pick
-q-cdr
-q-cdr
 q-car
 1 2 shove-back ;
 
 : f-8
+0 pick
+q-cdr
+q-car
+1 2 shove-back ;
+
+: f-9
+0 pick
+q-cdr
+q-cdr
+q-car
+1 2 shove-back ;
+
+: f-10
 info
 2 2 shove-back
 execute ;
 
-: f-9
+: f-11
 0 pick
 person-behavior
 object
 execute
-f-8 ;
+f-10 ;
 
-: f-10
+: f-12
 qt-10 @
 1 2 shove-back ;
 
-: f-11
+: f-13
 1 pick
 qt-9 @
 q-eq?
-if f-9 else f-10 then ;
-
-: f-12
-1 pick
-qt-8 @
-q-eq?
-if f-7 else f-11 then ;
-
-: f-13
-1 pick
-qt-7 @
-q-eq?
-if f-6 else f-12 then ;
+if f-11 else f-12 then ;
 
 : f-14
 1 pick
-qt-6 @
+qt-8 @
 q-eq?
-if f-5 else f-13 then ;
+if f-9 else f-13 then ;
 
 : f-15
-['] f-14 q-lambda
+1 pick
+qt-7 @
+q-eq?
+if f-8 else f-14 then ;
+
+: f-16
+1 pick
+qt-6 @
+q-eq?
+if f-7 else f-15 then ;
+
+: f-17
+drop
+['] f-16 q-lambda
 dup d-person_u002Dbehavior !
 drop
 2 pick
@@ -162,11 +184,17 @@ object
 3 3 shove-back
 execute ;
 
-: f-16
+: f-18
+people-count
+inc!
+execute
+f-17 ;
+
+: f-19
 dup d-melissa !
 1 0 shove-back ;
 
-: f-17
+: f-20
 dup d-john !
 drop
 qt-14 @
@@ -174,13 +202,15 @@ qt-14 @
 qt-15 @
 person
 execute
-f-16 ;
+f-19 ;
 
-: f-18
-['] f-4 q-lambda
-dup d-info !
+: f-21
+dup d-people_u002Dcount !
 drop
-['] f-15 q-lambda
+['] f-6 q-lambda
+dup d-inc_u0021 !
+drop
+['] f-18 q-lambda
 dup d-person !
 drop
 qt-12 @
@@ -188,7 +218,16 @@ qt-12 @
 qt-13 @
 person
 execute
-f-17 ;
+f-20 ;
+
+: f-22
+['] f-4 q-lambda
+dup d-info !
+drop
+0 q-number
+box
+execute
+f-21 ;
 
 \ toplevel
 : oop-toplevel
@@ -224,4 +263,4 @@ s-name
 qt-1 !
 s" Name: " q-string
 qt-0 !
-f-18 ;
+f-22 ;

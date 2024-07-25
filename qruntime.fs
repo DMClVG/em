@@ -2,6 +2,11 @@
 
 rp@ constant rbase
 
+:noname , here cell - ; constant box
+
+:noname swap ! 0 ; constant set!
+:noname @ ; constant ref
+
 : rdepth rbase rp@ - ;
 
 : q-number ;
@@ -76,7 +81,7 @@ variable stackp
   update-stack-pointer
 ;
 
-:noname 0 <# #s #> q-string ; latestxt constant number->string
+:noname 0 <# #s #> q-string ; constant number->string
 
 : q-display symbol-string type 0 ;
 : q-newline newline type 0 ;
