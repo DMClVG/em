@@ -159,6 +159,7 @@ endcase
 : q-car check-pair car ;
 : q-cdr check-pair cdr ;
 
+
 : q-dbg dup q-unbox swap . . ;
 
 variable object-f
@@ -183,3 +184,13 @@ variable object-d
 ;
 
 : object ['] q-object q-lambda ;
+\ : car ['] q-car q-lambda ;
+\ : cdr ['] q-cdr q-lambda ;
+\ : display ['] q-display q-lambda ;
+\ : boolean? ['] q-boolean? q-lambda ;
+\ : symbol? ['] q-symbol? q-lambda ;
+\ : number? ['] q-number? q-lambda ;
+\ : procedure? ['] q-procedure? q-lambda ;
+\ : pair? ['] q-pair? q-lambda ;
+\ : null? ['] q-null? q-lambda ;
+\ : newline ['] q-newline q-lambda ;

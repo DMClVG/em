@@ -122,7 +122,7 @@
               ((if) (syntax-if (second expr) (third expr) (fourth expr) ctx))
               ((lambda) (syntax-lambda (second expr) (list-tail expr 2) ctx))
               ((begin) (evaluate-thunk (rest expr) ctx))
-              ((import) (syntax-import (second expr) ctx))
+              ((require) (syntax-import (second expr) ctx))
 
               ;; calls
               (else (evaluate-call (first expr) (rest expr) ctx)))))

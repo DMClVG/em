@@ -1,9 +1,11 @@
-;;(import b)
+(require b)
+(require oop)
 
 (define (hello x)
   (display 'hello-my-dear)
   (display x)
   (newline))
+
 (define (const x)
   (define (const-function _ self)
     self)
