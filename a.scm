@@ -31,7 +31,7 @@
 
 (define (length ls)
   (define (length-tail n ls)
-    (if (null? ls)
+    (if (eq? ls 0)
         n
         (length-tail (+ n 1) (cdr ls))))
   (length-tail 0 ls))
@@ -39,7 +39,7 @@
 (define (reverse ls)
 
   (define (reverse-tail ls res)
-    (if (null? ls)
+    (if (eq? ls 0)
         res
         (reverse-tail (cdr ls) (cons (car ls) res))))
 
@@ -54,9 +54,13 @@
       '()))
 
 
-(print (length '(a b c)))
+;;(print (length '(a b c)))
 
-(print (compose (lambda (x) (+ x 2)) (lambda (x) (* x 5))))
+;;(print (compose (lambda (x) (+ x 2)) (lambda (x) (* x 5))))
+(print (number->string 23132))
+
+(info john)
+
 
 ;;(print ((const 43) 3213))
 

@@ -50,7 +50,7 @@ rp@ constant rbase
 
 : q-and and ;
 : q-or or ;
-: q-not not ;
+: q-not 0<> ;
 
 variable argnum
 variable paramnum
@@ -76,9 +76,9 @@ variable stackp
   update-stack-pointer
 ;
 
-: display 0 <# #s #>
+:noname 0 <# #s #> q-string ; latestxt constant number->string
 
-: q-display display 0 ;
+: q-display symbol-string type 0 ;
 : q-newline newline type 0 ;
 : q-car car ;
 : q-cdr cdr ;

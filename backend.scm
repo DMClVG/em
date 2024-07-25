@@ -479,7 +479,7 @@
                 symbols2
                 quotes2)))))
 
-        ((+ - * / = eq? equal? cons car cdr display newline and or not boolean? null? pair? procedure? number? symbol? >= <= > <) ;; ops
+        ((+ - * / = eq? equal? cons car cdr display newline and or not >= <= > <) ;; ops
          (next
            (list-ref op 1) ;; cont
            (cons (op-to-c-call (car op)) code)
