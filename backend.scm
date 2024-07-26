@@ -132,14 +132,15 @@
     "\n"))
 
 
-(define (stitch-imports imports)
+(define (stitch-provides provides)
   (string-join
-    (let loop ((ls imports))
+    (let loop ((ls provides))
        (if (null? ls)
         '()
-        (cons
-          (string-append "")
-          (loop (cdr ls)))))
+        (let ((name (symbol->string (car ls))))
+	    (cons
+             (string-append ": " name " " name " ; ")
+             (loop (cdr ls))))))
     "\n"))
 
 (define (stitch-extern-defines defines)
@@ -273,6 +274,8 @@
   (string-join
     `(
       ;; ,(if debug? (string-append ": rl postpone include " module ".fs ;"))
+      ,(string-append "module " module)
+      ""
       "\\ defines"
       ,(stitch-defines (dedupe defines))
       ""
@@ -282,11 +285,16 @@
       "\\ lambdas"
       ,(stitch-lambdas module lambdas)
       ""
+      "provide"
+      ""
+      ,(stitch-provides imports)
+      ""
       "\\ toplevel"
       ,(string-append (top-level-function-signature module) "")
       ,(stitch-quotes-initialization quotes)
       ,(string-append (lambda->label (- (length lambdas) 1)) " ;")
-      )
+      ""
+      "end-module")
     "\n"))
 
 ;;(begin
@@ -439,26 +447,43 @@
                    symbols2
                    quotes2))))))
 
+        ((provide)
+         (let
+             ((names (list-ref op 1))
+              (cont (list-ref op 2)))
+
+         (next
+           cont
+	   (cons "0" code)
+           lambdas
+           defines
+           fetches
+           (append names imports)
+           symbols
+           quotes
+           paramcount)))
+
         ((import)
          (let
-           ((module (list-ref op 1))
-            (cont (list-ref op 2)))
+             ((module (list-ref op 1))
+              (cont (list-ref op 2)))
 
            (call-with-values
-            (lambda () (next cont '() lambdas defines fetches imports symbols quotes paramcount))
+               (lambda () (next cont '() lambdas defines fetches imports symbols quotes paramcount))
 
-            (lambda (lambdas2 defines2 fetches2 imports2 symbols2 quotes2)
-              (values
+             (lambda (lambdas2 defines2 fetches2 imports2 symbols2 quotes2)
+               (values
                 (cons
+                 (cons
+                  (string-append (lambda->label (- (length lambdas2) 1)))
                   (cons
-                    (string-append (lambda->label (- (length lambdas2) 1)))
-                    (cons
-                      (string-append (symbol->cidentifier module)"-toplevel")
-                      code))
-                  lambdas2)
+                   (string-append (symbol->cidentifier module)"-toplevel")
+                   code))
+                 lambdas2)
                 defines2
                 fetches2
-                (cons (string-append (symbol->cidentifier module) "-toplevel") imports2)
+		imports2
+                ;;(cons (string-append (symbol->cidentifier module) "-toplevel") imports2)
                 symbols2
                 quotes2)))))
 

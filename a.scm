@@ -1,6 +1,14 @@
 (require b)
 (require oop)
 
+(provide
+ const
+ compose
+ funny
+ factorial
+ length
+ count)
+
 (define (hello x)
   (display 'hello-my-dear)
   (display x)
@@ -48,7 +56,7 @@
 (define (count start end)
   (if (<= start end)
       (begin
-        (display start)
+        (display (number->string start))
         (newline)
         (count (+ start 1) end))
       '()))

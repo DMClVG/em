@@ -1,5 +1,29 @@
 \ Q runtime environment
 
+variable this-module-old-current
+variable this-module
+
+: module ( "name" -- )
+
+  get-current this-module-old-current !
+
+  vocabulary \ create vocabulary "name"
+
+  also
+  latestxt execute
+
+  definitions \ switch current to "name"
+;
+
+: provide
+  this-module-old-current @ set-current ;
+
+: end-module
+  previous
+  0 this-module !
+  0 this-module-old-current !
+;
+
 0 constant q-null
 
 : 2alloc, 2 cells alloc throw dup >r 2! r> ;

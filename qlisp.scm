@@ -70,6 +70,9 @@
 (define (syntax-import module ctx)
   (push-ir ctx `(import ,module)))
 
+(define (syntax-provide names ctx)
+  (push-ir ctx `(provide ,names)))
+
 (define (syntax-if condition iftrue iffalse ctx)
   (evaluate-expr
    condition
@@ -122,6 +125,7 @@
               ((lambda) (syntax-lambda (second expr) (list-tail expr 2) ctx))
               ((begin) (evaluate-thunk (rest expr) ctx))
               ((require) (syntax-import (second expr) ctx))
+	      ((provide) (syntax-provide (rest expr) ctx))
 
               ;; calls
               (else (evaluate-call (first expr) (rest expr) ctx)))))

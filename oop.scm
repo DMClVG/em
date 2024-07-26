@@ -1,3 +1,7 @@
+(provide
+ info
+ john)
+
 (define (info about)
   (display "Name: ")
   (display (about 'name))
