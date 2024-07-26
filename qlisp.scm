@@ -27,11 +27,20 @@
 (define (env-offset env n)
   (environment (map (lambda (bind) (list (first bind) (+ n (second bind)))) (environment-binds env)) (environment-parent env)))
 
+(define (env-append env names)
+  (environment (append (map (lambda (name) (list name )) names) (environment-binds env)) (environment-parent env)))
+
 (define (push-env-offset ctx)
   (context-env-update ctx (lambda (env) (env-offset env 1))))
 
+(define (push-env-offset-by n ctx)
+  (context-env-update ctx (lambda (env) (env-offset env n))))
+
 (define (pop-env-offset n ctx)
   (context-env-update ctx (lambda (env) (env-offset env (- n)))))
+
+(define (env-append-ctx names ctx)
+  (context-env-update ctx (lambda (env) (env-append (env-offset env (length names)) names ))))
 
 (define (evaluate-many exprs ctx)
   (let loop ((exprs exprs) (ctx ctx))
@@ -55,12 +64,11 @@
        (if (pair? (rest thunk)) ; not at tail?
            (push-ir (evaluate-thunk (rest thunk) ctx) `(drop))
            (evaluate-thunk (cdr thunk) ctx)))))
+(define (let->lambda names body)
+  `((lambda ,(map first names) ,@body) ,@(map second names)))
 
-
-(define (syntax-let bindings body ctx)
-  (evaluate-many
-    (map cadr bindings)
-    (evaluate-thunk body (push-ir ctx `(pop-frame ,(length bindings))))))
+(define (syntax-let names body ctx)
+  (evaluate-expr (let->lambda names body) ctx))
 
 (define (syntax-import module ctx)
   (push-ir ctx `(import ,module)))

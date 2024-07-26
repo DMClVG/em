@@ -1,3 +1,18 @@
+(provide
+ print
+ printf)
+
+(define (print x)
+  (display x)
+  (newline))
+
+(define (printf f x)
+  (if (eq? 'number f)
+      (print (number->string x))
+      (if (eq? 'string f)
+	  (print x)
+	  '())))
+
 (define (typed type datum)
   (cons type datum))
 

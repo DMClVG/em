@@ -1,5 +1,6 @@
 (require b)
 (require oop)
+(require typed)
 
 (provide
  const
@@ -15,8 +16,7 @@
   (newline))
 
 (define (const x)
-  (define (const-function _ self)
-    self)
+  (define (const-function _ self) self)
   (object x const-function))
 
 (define (compose f g)
@@ -24,10 +24,6 @@
     ((car self) ((car (cdr self)) x)))
 
   (object (cons f (cons g '())) compose-function))
-
-(define (print x)
-  (display x)
-  (newline))
 
 (define (funny a)
   '(h a h a))
@@ -62,18 +58,28 @@
       '()))
 
 
+(newline)
 (print (number->string (length (cons 'a (cons 'b (cons 'c '()))))))
 
 ;;(print (compose (lambda (x) (+ x 2)) (lambda (x) (* x 5))))
 (print (number->string 23132))
 
 (info john)
-(let ((hey a))
-  (print hey))
+(let ((hey (john 'name)))
+  (display "hey ")
+  (display hey)
+  (display "!")
+  (newline))
+
+(define (curry f x)
+  (define (curry-behavior y self)
+    ((car self) (cdr self) y))
+  (object (cons f x) curry-behavior))
 
 
-;;(print ((const 43) 3213))
+(printf 'number 122)
+(printf 'number ((const 8) 12))
 
-;;(print ((const 8) 12))
-
-;;(print ((compose 12 321) 11))
+((compose (curry printf 'number) factorial) 11)
+;;((curry printf 'number) 21)
+(printf 'number 11)
