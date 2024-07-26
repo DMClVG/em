@@ -35,32 +35,32 @@
 \ Constant lshift or 2/ i LOOP 2swap = max recurse +LOOP UNTIL depth *
 \ */ [']
 \ from CORE-EXT :
-\ true 2>r 2r@ 2r> tuck pick nip u> parse 0<> ?DO erase within false <> AGAIN 
+\ true 2>r 2r@ 2r> tuck pick nip u> parse 0<> ?DO erase within false <> AGAIN
 \ from BLOCK-EXT :
-\ \ 
+\ \
 \ from DOUBLE :
-\ 2Constant 2Variable 
+\ 2Constant 2Variable
 \ from EXCEPTION :
-\ throw catch 
+\ throw catch
 \ from EXCEPTION-EXT :
-\ abort" 
+\ abort"
 \ from FILE :
-\ S" included ( 
+\ S" included (
 \ from FLOAT :
-\ faligned floats 
+\ faligned floats
 \ from FLOAT-EXT :
-\ dfaligned dfloats sfaligned sfloats 
+\ dfaligned dfloats sfaligned sfloats
 \ from MEMORY :
-\ allocate free 
+\ allocate free
 \ from SEARCH :
 \ Forth-wordlist search-wordlist wordlist get-order set-order
 \ get-current definitions set-current
 \ from SEARCH-EXT :
-\ also previous 
+\ also previous
 \ from STRING :
-\ compare SLiteral 
+\ compare SLiteral
 \ from TOOLS-EXT :
-\ [IF] [THEN] [ELSE] CS-ROLL 
+\ [IF] [THEN] [ELSE] CS-ROLL
 
 \ !! alloc does not CATCH everything (e.g. no throws from alloc-nocollect).
 
@@ -277,11 +277,12 @@ list%
     cell% field rootlist-addr \ address of a root
 end-struct rootlist%
 
-variable other-roots 
+variable other-roots
 0 other-roots !
 
 \ ---------
 \ mark pass
+
 
 : mark? ( x -- f )
     \ can x be a pointer to an unmarked gc chunk?
@@ -413,7 +414,7 @@ end-struct freelist%
 \ sentinel to avoid a test for end-of-list in each iteration of
 \ freelist-search
 freelist% %allot constant freelist-sentinel
-variable freelists 
+variable freelists
 
 assert-level @ 1 > [if]
 \ freelist consistency
@@ -501,7 +502,7 @@ assert-level @ 1 > [if]
 
 variable current-limit	   \ when active-end reaches current-limit, collect!
 2variable size-factor
-variable size-offset 
+variable size-offset
 variable live-grains
 \ live-grains may be too large by one (if the last chunk is live), but
 \ that's no problem as it is only used for a heuristic calculation.
@@ -526,7 +527,7 @@ variable live-grains
     \ this can be accelerated by doing a simple find-next-bit on border&~live
     assert2( dup live @ bit-set? over border @ bit-set? and )
     begin ( u )
-	1+ border @ find-next-bit 
+	1+ border @ find-next-bit
 	dup live @ bit-set? 0= until
 ;
 
@@ -590,7 +591,7 @@ variable live-grains
     \ remove sentinel from border; live is dead after sweep, so never
     \ mind that
     dup 2 + border @ clear-bits ;
-    
+
 \ ---------------------
 \ the allocation proper
 
@@ -731,6 +732,10 @@ false gc-verbose
     tuck rootlist-addr !
     other-roots insert-node ;
 
+: alive? ( -- #cells )
+  active-end @ memory-block @ - cell / ;
+
+
 previous
 
 \ This is how the application could initialize the garbage collector
@@ -740,7 +745,7 @@ previous
 \    defers 'cold
 \  [THEN]
 \    gc-init-mem
-\  ; 
+\  ;
 
 \  S" gforth" environment? [IF] 2drop
 \  ' cold-gc is 'cold

@@ -2,7 +2,8 @@
 
 0 constant q-null
 
-: 2alloc, 2 alloc throw dup >r 2! r> ;
+: 2alloc, 2 cells alloc throw dup >r 2! r> ;
+: 1alloc, 1 cells alloc throw dup >r ! r> ;
 : 2allot, 2, here 2 cells - ;
 
 : q-string ( s # -- st ) 2allot, ;
@@ -10,8 +11,8 @@
 : q-cons ( a b -- cons ) 2alloc, ;
 
 : q-create-object
-  noname create 2, here 1 cells - root-address
-  does> ~~ 2@ ~~ execute
+  noname create 2, here cell - root-address
+  does> 2@ execute
 ;
 : q-object ( d f -- value )
   q-create-object
@@ -23,7 +24,7 @@
 
 \ predefined
 \ :noname 1 alloc throw dup >r ! r> ; constant box
-:noname , here cell - ; constant box
+:noname 1alloc, ; constant box
 :noname swap ! 0 ; constant set!
 :noname @ ; constant ref
 :noname 0 <# #s #> q-string ; constant number->string

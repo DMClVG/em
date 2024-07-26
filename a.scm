@@ -54,7 +54,7 @@
       '()))
 
 
-;;(print (length '(a b c)))
+(print (number->string (length (cons 'a (cons 'b (cons 'c '()))))))
 
 ;;(print (compose (lambda (x) (+ x 2)) (lambda (x) (* x 5))))
 (print (number->string 23132))
