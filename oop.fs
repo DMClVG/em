@@ -1,3 +1,5 @@
+module oop
+
 \ defines
 variable d-melissa d-melissa root-address 
 : melissa d-melissa @ ;
@@ -27,10 +29,6 @@ variable qt-8
 variable qt-9
 variable qt-10
 variable qt-11
-variable qt-12
-variable qt-13
-variable qt-14
-variable qt-15
 
 \ lambdas
 : f-0
@@ -127,189 +125,97 @@ execute
 f-13 ;
 
 : f-15
-0 pick
-car
-2 2 shove-back
-execute ;
-
-: f-16
-car
-2 2 shove-back
-execute ;
-
-: f-17
-0 pick
-cdr
-execute
-f-16 ;
-
-: f-18
-car
-2 2 shove-back
-execute ;
-
-: f-19
-cdr
-execute
-f-18 ;
-
-: f-20
-0 pick
-cdr
-execute
-f-19 ;
-
-: f-21
-info
-2 2 shove-back
-execute ;
-
-: f-22
-0 pick
-person-behavior
-object
-execute
-f-21 ;
-
-: f-23
-qt-10 @
+qt-6 @
 1 2 shove-back ;
 
-: f-24
-if f-22 else f-23 then ;
-
-: f-25
-1 pick
-qt-9 @
-eq?
-execute
-f-24 ;
-
-: f-26
-if f-20 else f-25 then ;
-
-: f-27
-1 pick
-qt-8 @
-eq?
-execute
-f-26 ;
-
-: f-28
-if f-17 else f-27 then ;
-
-: f-29
-1 pick
-qt-7 @
-eq?
-execute
-f-28 ;
-
-: f-30
-if f-15 else f-29 then ;
-
-: f-31
-1 pick
-qt-6 @
-eq?
-execute
-f-30 ;
-
-: f-32
+: f-16
 person-behavior
 object
 3 3 shove-back
 execute ;
 
-: f-33
+: f-17
 cons
 execute
-f-32 ;
+f-16 ;
 
-: f-34
+: f-18
 cons
 execute
-f-33 ;
+f-17 ;
 
-: f-35
+: f-19
 drop
-['] f-31
+['] f-15
 dup d-person_u002Dbehavior !
 drop
 2 pick
 2 pick
 2 pick
-qt-11 @
+qt-7 @
 cons
 execute
-f-34 ;
+f-18 ;
 
-: f-36
+: f-20
 people-count
 inc!
 execute
-f-35 ;
+f-19 ;
 
-: f-37
+: f-21
 dup d-melissa !
 1 0 shove-back ;
 
-: f-38
+: f-22
 dup d-john !
 drop
-qt-14 @
+qt-10 @
 27
-qt-15 @
+qt-11 @
 person
 execute
-f-37 ;
+f-21 ;
 
-: f-39
+: f-23
 dup d-people_u002Dcount !
 drop
 ['] f-14
 dup d-inc_u0021 !
 drop
-['] f-36
+['] f-20
 dup d-person !
 drop
-qt-12 @
+qt-8 @
 23
-qt-13 @
+qt-9 @
 person
 execute
-f-38 ;
+f-22 ;
 
-: f-40
+: f-24
+0
+drop
 ['] f-12
 dup d-info !
 drop
 0
 box
 execute
-f-39 ;
+f-23 ;
 
-\ toplevel
-: oop-toplevel
+: init-quotes
 s" ヾ(@^▽^@)ノ" q-string
-qt-15 !
-s" Melissa" q-string
-qt-14 !
-s" (¬_¬)ﾉ" q-string
-qt-13 !
-s" John" q-string
-qt-12 !
-q-null
 qt-11 !
-q-null
+s" Melissa" q-string
 qt-10 !
-s-info
+s" (¬_¬)ﾉ" q-string
 qt-9 !
-s-personality
+s" John" q-string
 qt-8 !
-s-age
+q-null
 qt-7 !
-s-name
+q-null
 qt-6 !
 s-personality
 qt-5 !
@@ -323,4 +229,15 @@ s-name
 qt-1 !
 s" Name: " q-string
 qt-0 !
-f-40 ;
+ ;
+
+provide
+
+: info info ; 
+: john john ; 
+
+: oop-toplevel
+init-quotes
+f-24 ;
+
+end-module

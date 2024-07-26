@@ -134,7 +134,7 @@
 
 (define (stitch-provides provides)
   (string-join
-    (let loop ((ls provides))
+    (let loop ((ls (dedupe provides)))
        (if (null? ls)
         '()
         (let ((name (symbol->string (car ls))))
@@ -285,13 +285,15 @@
       "\\ lambdas"
       ,(stitch-lambdas module lambdas)
       ""
+      ": init-quotes"
+      ,(stitch-quotes-initialization quotes) " ;"
+      ""
       "provide"
       ""
       ,(stitch-provides imports)
       ""
-      "\\ toplevel"
       ,(string-append (top-level-function-signature module) "")
-      ,(stitch-quotes-initialization quotes)
+      "init-quotes"
       ,(string-append (lambda->label (- (length lambdas) 1)) " ;")
       ""
       "end-module")

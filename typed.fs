@@ -1,3 +1,5 @@
+module typed
+
 \ defines
 variable d-tdisplay d-tdisplay root-address 
 : tdisplay d-tdisplay @ ;
@@ -447,8 +449,7 @@ typed
 execute
 f-61 ;
 
-\ toplevel
-: typed-toplevel
+: init-quotes
 s" ERR" q-string
 qt-19 !
 s" '()" q-string
@@ -489,4 +490,14 @@ s-boolean
 qt-1 !
 s-null
 qt-0 !
+ ;
+
+provide
+
+
+
+: typed-toplevel
+init-quotes
 f-62 ;
+
+end-module
