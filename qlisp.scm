@@ -57,15 +57,10 @@
            (evaluate-thunk (cdr thunk) ctx)))))
 
 
-;; (define (syntax-let bindings body env cont)
-;;   (evaluate-many
-;;     (map cadr bindings)
-;;     env
-;;     `(push-frame
-;;        ,(evaluate-thunk
-;;           body
-;;           (append-names-to-env env (map car bindings))
-;;           `(pop-frame ,(length bindings) ,cont)))))
+(define (syntax-let bindings body ctx)
+  (evaluate-many
+    (map cadr bindings)
+    (evaluate-thunk body (push-ir ctx `(pop-frame ,(length bindings))))))
 
 (define (syntax-import module ctx)
   (push-ir ctx `(import ,module)))
@@ -126,6 +121,7 @@
               ((begin) (evaluate-thunk (rest expr) ctx))
               ((require) (syntax-import (second expr) ctx))
 	      ((provide) (syntax-provide (rest expr) ctx))
+	      ((let) (syntax-let (second expr) (list-tail expr 2) ctx))
 
               ;; calls
               (else (evaluate-call (first expr) (rest expr) ctx)))))

@@ -68,6 +68,8 @@
 (print (number->string 23132))
 
 (info john)
+(let ((hey a))
+  (print hey))
 
 
 ;;(print ((const 43) 3213))
