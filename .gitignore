@@ -1,0 +1,10 @@
+*.o
+compiled/
+*~
+*.c
+a.fs
+b.fs
+oop.fs
+typed.fs
+symbols.fs
+program
