@@ -1,8 +1,18 @@
+
 64 1024 * 1024 * true false s" gc.fs" included drop 2drop
 
-include qruntime.fs
-include symbols.fs
-include typed.fs
-include b.fs
-include oop.fs
-include a.fs
+s" qruntime.fs" included
+
+: include-code
+s" symbols.fs" included
+s" typed.fs" included
+s" b.fs" included
+s" oop.fs" included
+s" a.fs" included
+  ;
+
+include-code
+
+: rl
+  s" make" system
+  include-code ;

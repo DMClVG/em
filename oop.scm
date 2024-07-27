@@ -1,6 +1,9 @@
 (provide
  info
- john)
+ john
+ melissa
+ inc!
+ person)
 
 (define (info about)
   (display "Name: ")

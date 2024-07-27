@@ -59,27 +59,26 @@
 
 
 (newline)
-(print (number->string (length (cons 'a (cons 'b (cons 'c '()))))))
 
-;;(print (compose (lambda (x) (+ x 2)) (lambda (x) (* x 5))))
-(print (number->string 23132))
+(display "'(a b c) has length: ")
+(printf 'number (length '(a b c)))
 
+(display "life: ")
+(printf 'number ((compose (lambda (x) (+ x 2)) (lambda (x) (* x 5))) 8))
+
+(printf 'string "~~~INFO~~~")
 (info john)
-(let ((hey (john 'name)))
-  (display "hey ")
-  (display hey)
-  (display "!")
-  (newline))
+(printf 'string "~~~~~~~~~~")
+
+(printf 'string "~~~INFO~~~")
+(info melissa)
+(printf 'string "~~~~~~~~~~")
+
 
 (define (curry f x)
   (define (curry-behavior y self)
     ((car self) (cdr self) y))
   (object (cons f x) curry-behavior))
 
-
-(printf 'number 122)
-(printf 'number ((const 8) 12))
-
+(display "11!: ")
 ((compose (curry printf 'number) factorial) 11)
-;;((curry printf 'number) 21)
-(printf 'number 11)

@@ -3,6 +3,8 @@
 variable this-module-old-current
 variable this-module
 
+: go execute ;
+
 : module ( "name" -- )
 
   get-current this-module-old-current !
