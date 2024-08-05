@@ -21,19 +21,19 @@
 (define (inc! box)
   (set! box (+ 1 (ref box))))
 
+(define (first ls) (car ls))
+(define (second ls) (car (cdr ls)))
+(define (third ls) (car (cdr (cdr ls))))
+
 (define (person name age personality)
   (inc! people-count)
 
   (define (person-behavior msg self)
-    (if (eq? msg 'name)
-        (car self)
-        (if (eq? msg 'age)
-            (car (cdr self))
-            (if (eq? msg 'personality)
-                (car (cdr (cdr self)))
-                (if (eq? msg 'info)
-		    (info (object self person-behavior))
-		    '())))))
+    (case msg
+      ('name (first self))
+      ('age  (second self))
+      ('personality (third self))
+      ('info (info (object self person-behavior)))))
 
   (object
    (cons name (cons age (cons personality '())))

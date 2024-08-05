@@ -106,6 +106,17 @@
       (do-define (first name) `(lambda ,(rest name) ,@expr) ctx)
       (do-define name (first expr) ctx)))
 
+(define (case-into-ifs matchee matches)
+  (let loop ((matches matches))
+     (if (null? matches)
+         ''()
+         `(if (eq? ,matchee ,(first (first matches)))
+              ,(second (first matches))
+              ,(loop (rest matches))))))
+
+(define (syntax-case-form matchee matches ctx)
+  (evaluate-expr (case-into-ifs matchee matches) ctx))
+
 (define (evaluate-expr expr ctx)
   (if (pair? expr)
       (if (or #f (equal? (first expr) 'quote))
@@ -123,6 +134,7 @@
                (syntax-unary f (second expr) ctx))
 
               ;; special forms
+	      ((case) (syntax-case-form (second expr) (list-tail expr 2) ctx))
               ((define) (syntax-define (second expr) (list-tail expr 2) ctx))
               ((if) (syntax-if (second expr) (third expr) (fourth expr) ctx))
               ((lambda) (syntax-lambda (second expr) (list-tail expr 2) ctx))
