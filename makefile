@@ -1,15 +1,16 @@
 P=program
-SCRIPTS=a.fs b.fs person.fs std.fs
+SCRIPTS=main.fs person.fs std.fs
 SYMBOLS=symbols.fs
-DEPS=qlisp.scm backend.scm env.scm
+DEPS=$(wildcard q/*.scm)
+LISP=q/qlisp.scm
 
 $(P): $(SCRIPTS) $(SYMBOLS)
 
 %.fs: %.scm $(DEPS)
-	cat $< | racket qlisp.scm --build $(basename $@) > $@
+	cat $< | racket $(LISP) --build $(basename $@) > $@
 
 symbols.fs: $(SCRIPTS)
-	cat $(SCRIPTS:.fs=.scm) | racket qlisp.scm --extract-symbols ee > $@
+	cat $(SCRIPTS:.fs=.scm) | racket $(LISP) --extract-symbols ee > $@
 
 clean:
 	rm -f $(SCRIPTS)

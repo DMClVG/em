@@ -10,9 +10,9 @@ move
 : drop-args argc @ 0 do next-arg 2drop loop ;
 drop-args \ make gforth stop processing further arguments
 
-64 1024 * 1024 * true false s" gc.fs" included drop 2drop
+64 1024 * 1024 * true false s" q/gc.fs" included drop 2drop
 
-s" qruntime.fs" included
+s" q/qruntime.fs" included
 
 : include-code
 s" symbols.fs" included
@@ -21,7 +21,7 @@ s" extra.fs" included
 s" std.fs" included
 s" person.fs" included
 
-s" a.fs" included
+s" main.fs" included
   ;
 
 include-code
@@ -30,5 +30,5 @@ include-code
   s" make" system
   include-code ;
 
-: r a-toplevel ;
+: r main-toplevel ;
 : q bye ;

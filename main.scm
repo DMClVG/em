@@ -21,5 +21,9 @@
 (info melissa)
 (printf 'string "~~~~~~~~~~")
 (newline)
+(define (show-usage)
+  (printf 'string  "USAGE: gforth init.scm [file]"))
 
-(printf 'string (read-file-all (cli-arg 1)))
+(if (not (eq? (cli-arg-count) 2))
+    (show-usage)
+    (printf 'string (read-file-all (cli-arg 1))))

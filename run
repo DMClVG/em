@@ -1,3 +1,0 @@
-#!/bin/sh
-
-gforth q.fs -e "0 a-toplevel bye"
