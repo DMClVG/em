@@ -8,6 +8,7 @@ std.fs
 person.fs
 oop.fs
 cat.fs
+main.fs
 typed.fs
 symbols.fs
 program
