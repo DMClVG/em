@@ -2,18 +2,22 @@
  info
  john
  melissa
+ person
+ name-of-person
+ age-of-person
+ personality-of-person
  inc!
  person)
 
 (define (info about)
   (display "Name: ")
-  (display (about 'name))
+  (display (name-of-person about))
   (newline)
   (display "Age: ")
-  (display (number->string (about 'age)))
+  (display (number->string (age-of-person about)))
   (newline)
   (display "Personality: ")
-  (display (about 'personality))
+  (display (personality-of-person about))
   (newline))
 
 (define people-count (box 0))
@@ -21,23 +25,10 @@
 (define (inc! box)
   (set! box (+ 1 (ref box))))
 
-(define (first ls) (car ls))
-(define (second ls) (car (cdr ls)))
-(define (third ls) (car (cdr (cdr ls))))
-
-(define (person name age personality)
-  (inc! people-count)
-
-  (define (person-behavior msg self)
-    (case msg
-      ('name (first self))
-      ('age  (second self))
-      ('personality (third self))
-      ('info (info (object self person-behavior)))))
-
-  (object
-   (cons name (cons age (cons personality '())))
-   person-behavior))
+(struct person
+   (name-of-person
+    age-of-person
+    personality-of-person))
 
 (define john (person "John" 23 "(¬_¬)ﾉ"))
 (define melissa (person "Melissa" 27 "ヾ(@^▽^@)ノ"))

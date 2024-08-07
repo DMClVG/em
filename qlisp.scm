@@ -28,7 +28,7 @@
   (environment (map (lambda (bind) (list (first bind) (+ n (second bind)))) (environment-binds env)) (environment-parent env)))
 
 (define (env-append env names)
-  (environment (append (map (lambda (name) (list name )) names) (environment-binds env)) (environment-parent env)))
+  (environment (append names (environment-binds env)) (environment-parent env)))
 
 (define (push-env-offset ctx)
   (context-env-update ctx (lambda (env) (env-offset env 1))))
@@ -64,11 +64,14 @@
        (if (pair? (rest thunk)) ; not at tail?
            (push-ir (evaluate-thunk (rest thunk) ctx) `(drop))
            (evaluate-thunk (cdr thunk) ctx)))))
-(define (let->lambda names body)
-  `((lambda ,(map first names) ,@body) ,@(map second names)))
 
 (define (syntax-let names body ctx)
-  (evaluate-expr (let->lambda names body) ctx))
+  (let* ((env (context-env ctx))
+         (binds (reverse (map first names)))
+         (vals (map second names))
+         (body-env (env-append (env-offset env (length binds)) (for/list ((i (length binds))) (list (list-ref binds i) i)))))
+
+    (evaluate-many vals (evaluate-thunk body (context-env-update (push-ir ctx `(pop-frame ,(length binds))) (const body-env))))))
 
 (define (syntax-import module ctx)
   (push-ir ctx `(import ,module)))
@@ -117,6 +120,21 @@
 (define (syntax-case-form matchee matches ctx)
   (evaluate-expr (case-into-ifs matchee matches) ctx))
 
+(define (struct->defines constructor fields)
+  `(begin
+     (define (,constructor ,@fields)
+       (let ((mem (make-memory ,(length fields))))
+         ,@(for/list ((i (length fields)))
+            `(offset-set! mem ,i ,(list-ref fields i)))
+         mem))
+
+     ,@(for/list ((i (length fields)))
+         `(define (,(list-ref fields i) mem)
+            (offset-ref mem ,i)))))
+
+(define (syntax-struct constructor fields ctx)
+  (evaluate-expr (struct->defines constructor fields) ctx))
+
 (define (evaluate-expr expr ctx)
   (if (pair? expr)
       (if (or #f (equal? (first expr) 'quote))
@@ -134,6 +152,7 @@
                (syntax-unary f (second expr) ctx))
 
               ;; special forms
+              ((struct) (syntax-struct (second expr) (third expr) ctx))
 	      ((case) (syntax-case-form (second expr) (list-tail expr 2) ctx))
               ((define) (syntax-define (second expr) (list-tail expr 2) ctx))
               ((if) (syntax-if (second expr) (third expr) (fourth expr) ctx))
@@ -201,6 +220,10 @@
     ((equal? cmd "--build-tree")
      (display (context-ops (evaluate-thunk (read-stdin) empty-ctx)))
      (newline))))
+
+(define (compile ctx)
+  (let-values (((lambdas defines fetches imports symbols quotes) (to-c (context-ops ctx))))
+    (stitch-program "test" lambdas defines fetches imports symbols quotes #t)))
 
 (define (eval-file path)
   (context-ops (evaluate-thunk (read-all (open-input-file path)) empty-ctx)))

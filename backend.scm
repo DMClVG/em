@@ -535,6 +535,23 @@
              quotes
              paramcount)))
 
+        ;; ((struct)
+        ;;  (let
+        ;;    ((constructor (list-ref op 1))
+	;;     (fields (list-ref op 2))
+        ;;     (cont (list-ref op 3)))
+
+        ;;    (next
+        ;;      cont
+        ;;      (cons (string-append "dup " (define->cdefine name) " !") code)
+        ;;      lambdas
+        ;;      (append fields (cons constructor defines))
+        ;;      fetches
+        ;;      imports
+        ;;      symbols
+        ;;      quotes
+        ;;      paramcount)))
+
         ((number)
          (let
            ((x (list-ref op 1))

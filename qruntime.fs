@@ -36,15 +36,6 @@ variable this-module
 : q-symbol ( s # -- sy ) 2allot, ;
 : q-cons ( a b -- cons ) 2alloc, ;
 
-: q-create-object
-  noname create 2, here cell - root-address
-  does> 2@ execute
-;
-: q-object ( d f -- value )
-  q-create-object
-  latestxt
-;
-
 : q-car cell + @ ;
 : q-cdr @ ;
 
@@ -60,9 +51,17 @@ variable this-module
 ' q-cons constant cons
 ' q-car constant car
 ' q-cdr constant cdr
-' q-object constant object
 ' noop constant identity
 ' noop constant symbol->string
+:noname ( addr offset x -- nil )
+  -rot cells + ! 0
+; constant offset-set!
+:noname ( addr offset -- x )
+  cells + @
+; constant offset-ref
+:noname ( n -- addr )
+  cells alloc throw
+; constant make-memory
 
 \ stack trickery
 variable argnum

@@ -16,3 +16,6 @@ include-code
 : rl
   s" make" system
   include-code ;
+
+: r a-toplevel ;
+: q bye ;

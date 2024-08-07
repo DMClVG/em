@@ -3,27 +3,19 @@
 (require typed)
 
 (provide
- const
- compose
  funny
+ melissa
  factorial
  length
  count)
+
+(struct string (length-of-string chars-of-string))
+;; (struct cons   (cdr car))
 
 (define (hello x)
   (display 'hello-my-dear)
   (display x)
   (newline))
-
-(define (const x)
-  (define (const-function _ self) self)
-  (object x const-function))
-
-(define (compose f g)
-  (define (compose-function x self)
-    ((car self) ((car (cdr self)) x)))
-
-  (object (cons f (cons g '())) compose-function))
 
 (define (funny a)
   '(h a h a))
@@ -57,14 +49,10 @@
         (count (+ start 1) end))
       '()))
 
-
 (newline)
 
 (display "'(a b c) has length: ")
 (printf 'number (length '(a b c)))
-
-(display "life: ")
-(printf 'number ((compose (lambda (x) (+ x 2)) (lambda (x) (* x 5))) 8))
 
 (printf 'string "~~~INFO~~~")
 (info john)
@@ -74,11 +62,5 @@
 (info melissa)
 (printf 'string "~~~~~~~~~~")
 
-
-(define (curry f x)
-  (define (curry-behavior y self)
-    ((car self) (cdr self) y))
-  (object (cons f x) curry-behavior))
-
-(display "11!: ")
-((compose (curry printf 'number) factorial) 11)
+(printf 'number (length-of-string "hi"))
+(printf 'number (chars-of-string "hi"))

@@ -1,10 +1,3 @@
-;;(define (funnee a)
-;;  '(h a h a)
-;;
-;;(define (factorial n)
-;;  (if (equal? n 0)
-;;    1
-;;    (* (factorial (- n 1)) n)))
-
-(define (funny? name)
-  (eq? name 'sandy))
+(define (x)
+  (let ((a 1) (b 2) (c 3))
+    (display (* b (+ c a)))))
