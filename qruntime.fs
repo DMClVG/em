@@ -39,6 +39,8 @@ variable this-module
 : q-car cell + @ ;
 : q-cdr @ ;
 
+: q-unbox 2@ ;
+
 \ predefined
 \ :noname 1 alloc throw dup >r ! r> ; constant box
 :noname 1alloc, ; constant box

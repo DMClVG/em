@@ -4,6 +4,8 @@ compiled/
 *.c
 a.fs
 b.fs
+std.fs
+person.fs
 oop.fs
 typed.fs
 symbols.fs

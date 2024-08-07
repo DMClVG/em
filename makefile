@@ -1,5 +1,5 @@
 P=program
-SCRIPTS=a.fs b.fs oop.fs typed.fs
+SCRIPTS=a.fs b.fs person.fs std.fs
 SYMBOLS=symbols.fs
 DEPS=qlisp.scm backend.scm env.scm
 

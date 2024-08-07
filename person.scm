@@ -1,13 +1,13 @@
 (provide
  info
+
  john
  melissa
+
  person
  name-of-person
  age-of-person
- personality-of-person
- inc!
- person)
+ personality-of-person)
 
 (define (info about)
   (display "Name: ")
@@ -19,11 +19,6 @@
   (display "Personality: ")
   (display (personality-of-person about))
   (newline))
-
-(define people-count (box 0))
-
-(define (inc! box)
-  (set! box (+ 1 (ref box))))
 
 (struct person
    (name-of-person
