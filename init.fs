@@ -19,6 +19,7 @@ s" symbols.fs" included
 s" extra.fs" included
 
 s" std.fs" included
+s" read.fs" included
 s" person.fs" included
 
 s" main.fs" included

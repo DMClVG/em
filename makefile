@@ -1,5 +1,5 @@
 P=program
-SCRIPTS=main.fs person.fs std.fs
+SCRIPTS=main.fs person.fs std.fs read.fs
 SYMBOLS=symbols.fs
 DEPS=$(wildcard q/*.scm)
 LISP=q/qlisp.scm

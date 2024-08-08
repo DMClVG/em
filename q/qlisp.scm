@@ -114,7 +114,7 @@
      (if (null? matches)
          ''()
          `(if (eq? ,matchee ,(first (first matches)))
-              ,(second (first matches))
+              (begin ,@(list-tail (first matches) 1))
               ,(loop (rest matches))))))
 
 (define (syntax-case-form matchee matches ctx)

@@ -1,5 +1,6 @@
 (require std)
 (require person)
+(require read)
 
 (define (factorial n)
   (if (= n 0)
@@ -21,9 +22,52 @@
 (info melissa)
 (printf 'string "~~~~~~~~~~")
 (newline)
-(define (show-usage)
-  (printf 'string  "USAGE: gforth init.scm [file]"))
 
-(if (not (eq? (cli-arg-count) 2))
-    (show-usage)
-    (printf 'string (read-file-all (cli-arg 1))))
+
+(define (print string)
+  (printf 'string string))
+
+(define (here)
+  (printf 'string "Here"))
+
+(define (tprint x)
+  (define (tprint-list ls)
+    (if ls
+        (begin
+         (let ((a (car ls))
+               (b (cdr ls)))
+           (here)
+
+           (tprint a)
+
+           (here)
+
+           (if (eq? (type b) 'cons)
+               (tprint-list b)
+               (begin
+                 (printf 'string " . ")
+                 (tprint b)))))
+        0))
+
+  (here)
+  (printf 'number x)
+  (print (type x))
+
+  (case (type x)
+    ('cons
+     (printf 'string "(")
+     (tprint-list (value x))
+     (printf 'string ")"))
+    ('string
+     (printf 'string "\"")
+     (printf 'string (value x))
+     (printf 'string "\""))
+    ('symbol
+     (here)
+     (printf 'string (value x)))
+    ('float
+     (printf 'string "[FLOAT]"))))
+
+(tprint (read "haha"))
+
+;;(newline)
